@@ -21,15 +21,15 @@ async function route(request: Request, env: Env): Promise<Response> {
     if (selected && !isClassId(selected))
       throw new HttpError(400, "Unknown classroom.");
     const raw = await readLimited(request.body, MAX_EMAIL_BYTES);
-    return Response.json(
-      await ingestMail(
-        env,
-        raw,
-        "",
-        selected && isClassId(selected) ? [selected] : [],
-      ),
-      { status: 201 },
+    const messages = await ingestMail(
+      env,
+      raw,
+      "",
+      selected && isClassId(selected) ? [selected] : [],
     );
+    return Response.json(messages.length === 1 ? messages[0] : { messages }, {
+      status: 201,
+    });
   }
   if (path === "/api/plans" && request.method === "POST") {
     if (!(await isAdmin(request, env)))
@@ -152,8 +152,7 @@ export default {
       console.log(
         JSON.stringify({
           event: "email_stored",
-          id: result.id,
-          classIds: result.classIds,
+          messages: result,
         }),
       );
     } catch (error) {

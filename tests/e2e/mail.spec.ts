@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { CLASSES } from "../../src/shared/classes";
-import { fixtureMail, mailConfig } from "../fixtures/mail";
+import { fixtureMail, forwardedMail, mailConfig } from "../fixtures/mail";
 
 const headers = {
   Authorization: "Bearer local-e2e-import-token",
@@ -134,4 +134,91 @@ test("exposes only the public inbound address, never the sender allowlist or cla
   const stats = await (await request.get("/api/stats")).json();
   for (const classroom of stats.classes)
     expect(classroom).not.toHaveProperty("email");
+});
+
+test("archives forwarded batches as separate originals and deduplicates repeated list deliveries", async ({
+  request,
+}) => {
+  const key = `batch-${crypto.randomUUID()}`;
+  const originals = [
+    fixtureMail(`${key}-shared`),
+    fixtureMail(`${key}-shared`, mailConfig.classEmails.guppy),
+    fixtureMail(`${key}-twos`, mailConfig.classEmails.twos),
+  ];
+  const wrapper = forwardedMail(originals, mailConfig.classEmails.twos);
+  const query = new URLSearchParams({
+    from: "parent@example.com",
+    to: mailConfig.inboundAddress,
+  });
+  const response = await request.post(`/cdn-cgi/local/email?${query}`, {
+    data: wrapper,
+  });
+  expect(response.status(), await response.text()).toBe(200);
+  const page = await (await request.get(`/api/mail?q=${key}`)).json();
+  expect(page.total).toBe(2);
+  for (const [suffix, expectedClasses, original] of [
+    ["shared", ["guppy", "sunshine"], originals[0]],
+    ["twos", ["twos"], originals[2]],
+  ] as const) {
+    const found = await (
+      await request.get(`/api/mail?q=${key}-${suffix}`)
+    ).json();
+    expect(found.total).toBe(1);
+    const item = found.items[0];
+    expect(item.class_ids.sort()).toEqual(expectedClasses);
+    expect(item.sent_at).toBe("2026-11-13T17:00:00.000Z");
+    expect(item.sender).toBe("teacher@school.example.com");
+    expect(await (await request.get(`/api/original/${item.id}`)).text()).toBe(
+      original,
+    );
+    const detail = await (await request.get(`/api/mail/${item.id}`)).json();
+    expect(detail.attachments).toHaveLength(1);
+    expect(
+      await (
+        await request.get(`/api/attachments/${detail.attachments[0].id}`)
+      ).text(),
+    ).toContain("Acorn scavenger hunt");
+  }
+  const repeated = await request.post("/api/import", {
+    headers,
+    data: wrapper,
+  });
+  expect(repeated.status()).toBe(201);
+  const imported = await repeated.json();
+  expect(imported.messages).toHaveLength(3);
+  expect(imported.messages[0].id).toBe(imported.messages[1].id);
+  expect((await (await request.get(`/api/mail?q=${key}`)).json()).total).toBe(
+    2,
+  );
+  for (const c of CLASSES) {
+    expect(
+      (await (await request.get(`/api/mail?q=${key}&class=${c.id}`)).json())
+        .total,
+    ).toBe(1);
+  }
+});
+
+test("rejects malformed and oversized batches before storing any member", async ({
+  request,
+}) => {
+  const key = `invalid-batch-${crypto.randomUUID()}`;
+  const query = new URLSearchParams({
+    from: "parent@example.com",
+    to: mailConfig.inboundAddress,
+  });
+  const rejected = await request.post(`/cdn-cgi/local/email?${query}`, {
+    data: forwardedMail([fixtureMail(key), "not an email"]),
+  });
+  expect(rejected.status()).toBe(400);
+  expect(await rejected.text()).toContain("From address");
+  const tooMany = await request.post("/api/import", {
+    headers,
+    data: forwardedMail(
+      Array.from({ length: 21 }, (_, i) => fixtureMail(`${key}-${i}`)),
+    ),
+  });
+  expect(tooMany.status()).toBe(422);
+  expect((await (await request.get(`/api/mail?q=${key}`)).json()).total).toBe(
+    0,
+  );
 });

@@ -2,7 +2,7 @@ import { convert } from "html-to-text";
 import PostalMime, { type Email } from "postal-mime";
 import { type ClassId, identifyClasses } from "../shared/classes";
 import { type MailConfig, parseMailConfig } from "../shared/mail-config";
-import { HttpError } from "./errors";
+import { HttpError, MAX_EMAIL_BYTES } from "./errors";
 
 const MAX_TEXT = 100_000;
 export async function sha256(value: string | Uint8Array): Promise<string> {
@@ -41,38 +41,13 @@ function addressHeaders(mail: Email): string {
     .map((h) => h.value)
     .join("\n");
 }
-export async function parseMail(
+async function parseMessage(
   raw: Uint8Array,
+  mail: Email,
   config: MailConfig,
-  recipient = "",
-  extraClasses: ClassId[] = [],
-  depth = 0,
+  recipient: string,
+  extraClasses: ClassId[],
 ) {
-  const mail = await PostalMime.parse(raw, {
-    attachmentEncoding: "arraybuffer",
-  });
-  const nested = mail.attachments.filter(
-    (a) => a.mimeType === "message/rfc822",
-  );
-  if (nested.length === 1 && nested[0] && depth < 3) {
-    const content = nested[0].content;
-    return parseMail(
-      typeof content === "string"
-        ? new TextEncoder().encode(content)
-        : Uint8Array.from(new Uint8Array(content)),
-      config,
-      recipient,
-      [
-        ...extraClasses,
-        ...identifyClasses(addressHeaders(mail), config.classEmails),
-      ],
-      depth + 1,
-    );
-  }
-  if (!mail.from?.address)
-    throw new HttpError(422, "The email has no valid From address.");
-  if (mail.attachments.length > 40)
-    throw new HttpError(422, "An email may contain at most 40 attachments.");
   const body = (mail.text || plainText(mail.html || "")).slice(0, MAX_TEXT);
   const forwardedRecipients = body
     .split("\n")
@@ -117,7 +92,8 @@ export async function parseMail(
     mail.date && Number.isFinite(Date.parse(mail.date))
       ? new Date(mail.date).toISOString()
       : null;
-  const sender = mail.from.address.toLowerCase();
+  const sender = mail.from?.address?.toLowerCase();
+  if (!sender) throw new HttpError(422, "The email has no valid From address.");
   const subject = mail.subject || "(No subject)";
   const contentHash = await sha256(
     JSON.stringify([
@@ -145,18 +121,77 @@ export async function parseMail(
   };
 }
 
+type ParsedMail = Awaited<ReturnType<typeof parseMessage>>;
+
+export async function parseMailBatch(
+  raw: Uint8Array,
+  config: MailConfig,
+  recipient = "",
+  extraClasses: ClassId[] = [],
+): Promise<ParsedMail[]> {
+  if (raw.byteLength > MAX_EMAIL_BYTES)
+    throw new HttpError(413, "File exceeds the 20 MB import limit.");
+  const messages: ParsedMail[] = [];
+  async function visit(bytes: Uint8Array, envelopeTo: string, depth: number) {
+    const mail = await PostalMime.parse(bytes, {
+      attachmentEncoding: "arraybuffer",
+      forceRfc822Attachments: true,
+    });
+    if (!mail.from?.address)
+      throw new HttpError(422, "The email has no valid From address.");
+    if (mail.attachments.length > 40)
+      throw new HttpError(422, "An email may contain at most 40 attachments.");
+    const nested = mail.attachments.filter(
+      (attachment) => attachment.mimeType === "message/rfc822",
+    );
+    if (nested.length) {
+      if (depth >= 3)
+        throw new HttpError(422, "Forwarded emails may nest at most 3 levels.");
+      for (const attachment of nested) {
+        const content = attachment.content;
+        const original =
+          typeof content === "string"
+            ? new TextEncoder().encode(content)
+            : new Uint8Array(content);
+        // Each original's own headers determine its classrooms, not the wrapper.
+        await visit(original, "", depth + 1);
+      }
+    }
+    // Retain a wrapper with other files so extra attachments are never discarded.
+    if (!nested.length || nested.length < mail.attachments.length) {
+      if (messages.length >= 20)
+        throw new HttpError(
+          422,
+          "A batch may contain at most 20 emails. Send smaller batches.",
+        );
+      messages.push(
+        await parseMessage(bytes, mail, config, envelopeTo, extraClasses),
+      );
+    }
+  }
+  await visit(raw, recipient, 0);
+  return messages;
+}
+
 export async function ingestMail(
   env: Env,
   raw: Uint8Array,
   recipient = "",
   classes: ClassId[] = [],
 ) {
-  const parsed = await parseMail(
+  // Validate the entire batch before writing any of its messages.
+  const messages = await parseMailBatch(
     raw,
     parseMailConfig(env.MAIL_CONFIG),
     recipient,
     classes,
   );
+  const results = [];
+  for (const parsed of messages) results.push(await storeMail(env, parsed));
+  return results;
+}
+
+async function storeMail(env: Env, parsed: ParsedMail) {
   const { mail, body, attachments, sender, subject, contentHash, messageKey } =
     parsed;
   const candidateId = await sha256(`mail:${messageKey}`);
