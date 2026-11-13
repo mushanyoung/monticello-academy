@@ -6,6 +6,20 @@ import {
 } from "../../src/worker/mail-view";
 
 describe("original email rendering", () => {
+  it("lets translated email text inherit the selected document language", () => {
+    const html = emailDocument(
+      '<div lang="en-US" style="color:purple"><p lang="en">课堂消息</p></div>',
+      "课堂消息",
+      new Map(),
+      false,
+      "zh",
+    );
+    expect(html).toContain('<html lang="zh-CN"');
+    expect(html).toContain("<title>邮件正文</title>");
+    expect(html).not.toMatch(/lang="en(?:-US)?"/);
+    expect(html).toContain('style="color:purple"');
+    expect(html).toContain("课堂消息");
+  });
   it("preserves typography, colors, layout tables, and stylesheet rules", () => {
     const { content } = sanitizeEmail(
       '<html><head><style>.title { color: purple; }</style></head><body style="font-family:Calibri"><table cellpadding="8"><tr><td colspan="2"><font size="5" color="orange"><b class="title" style="font-size:28pt">Newsletter</b></font></td></tr></table></body></html>',

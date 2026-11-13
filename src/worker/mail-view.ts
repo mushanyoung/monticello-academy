@@ -49,7 +49,7 @@ export function sanitizeEmail(
         "class",
         "id",
         "dir",
-        "lang",
+        // The translated document declares its language; source spans must inherit it.
         "title",
         "align",
         "valign",
