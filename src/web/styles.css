@@ -959,23 +959,18 @@ h2 {
 .pagination span {
   color: #a28da7;
 }
-.month-form {
-  display: grid;
-  grid-template-columns: minmax(0, 220px) max-content;
-  align-items: end;
-  gap: 11px;
-  margin: 12px 0 25px;
-}
-.month-field {
+.month-picker {
   display: grid;
   gap: 5px;
   min-width: 0;
+  max-width: 240px;
+  margin: 12px 0 25px;
 }
-.month-form label {
+.month-picker label {
   font-size: var(--text-body);
   color: #957d9d;
 }
-.month-form select {
+.month-picker select {
   width: 100%;
   min-width: 0;
   height: 44px;
@@ -1444,9 +1439,8 @@ h2 {
   .icon-button {
     width: 32px;
   }
-  .month-form {
-    grid-template-columns: minmax(0, 1fr) max-content;
-    gap: 9px;
+  .month-picker {
+    max-width: none;
   }
   .plan {
     padding: 23px 19px;

@@ -78,23 +78,29 @@ function MonthlyPlans({
   );
   return (
     <>
-      <form className="month-form" action="/" method="get">
-        <input type="hidden" name="view" value="plans" />
-        <input type="hidden" name="class" value={selected} />
-        <div className="month-field">
-          <label htmlFor="month">{t("Month")}</label>
-          <select id="month" name="month" defaultValue={selectedMonth}>
-            {months.map((value) => (
-              <option key={value} value={value}>
-                {displayDate(`${value}-01`, { year: "numeric", month: "long" })}
-              </option>
-            ))}
-          </select>
-        </div>
-        <button className="button" type="submit">
-          {t("Go")} <Icon name="arrow" size={16} />
-        </button>
-      </form>
+      <div className="month-picker">
+        <label htmlFor="month">{t("Month")}</label>
+        <select
+          id="month"
+          name="month"
+          defaultValue={selectedMonth}
+          onChange={(event) => {
+            window.location.assign(
+              href({
+                view: "plans",
+                class: selected,
+                month: event.currentTarget.value,
+              }),
+            );
+          }}
+        >
+          {months.map((value) => (
+            <option key={value} value={value}>
+              {displayDate(`${value}-01`, { year: "numeric", month: "long" })}
+            </option>
+          ))}
+        </select>
+      </div>
       {plans.data ? (
         plans.data.items.length ? (
           <div className="plan-list">

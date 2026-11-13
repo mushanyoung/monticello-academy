@@ -57,11 +57,14 @@ test("chooses only archived months across classrooms and retains filters and sha
         options.map((option) => option.getAttribute("value")),
       ),
   ).toEqual(months);
+  await expect(page.locator(".month-picker select")).toHaveCount(1);
   await expect(
-    page.locator('.month-form input:not([type="hidden"])'),
+    page.locator(".month-picker input, .month-picker button"),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Go", exact: true }),
   ).toHaveCount(0);
   await page.getByLabel("Month", { exact: true }).selectOption("2051-02");
-  await page.getByRole("button", { name: "Go", exact: true }).click();
   await expect(page).toHaveURL(/class=sunshine&month=2051-02/);
   await expect(
     page.getByRole("heading", { name: "Sunshine February archive" }),
@@ -75,7 +78,7 @@ test("chooses only archived months across classrooms and retains filters and sha
     page.getByRole("heading", { name: "Guppy February archive" }),
   ).toBeVisible();
   await page.getByLabel("Month", { exact: true }).selectOption("2051-09");
-  await page.getByRole("button", { name: "Go", exact: true }).click();
+  await expect(page).toHaveURL(/class=guppy&month=2051-09/);
   await filters
     .getByRole("link", { name: "Sunshine Room", exact: true })
     .click();
