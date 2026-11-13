@@ -15,3 +15,11 @@ translationTemplate 只提取用户可见文字、图片 alt/title、邮件标�
 每批最多 150 个片段、24k 字符，单片段最多 16k 字符。模型必须按 ID 完整返回 en/zh；缺片段、重复 ID 或修改原文数字、地址和链接时拒绝整批。语言版本不允许借翻译注入 HTML。相同文字复用片段，长纯文本分块且保留空白。
 
 translation_jobs 按实体、来源内容和翻译器版本去重；translation_parts 保存已完成分块与响应 ID。mail_localizations 与 plan_localizations 分别存两种语言，记录来源快照；后续发布必须验证来源仍是当前版本，防止旧翻译覆盖新课程。没有人工审批状态。
+
+数字、日期、时间、URL 和邮箱先替换成不可改写的占位符；模型必须原样返回，服务端恢复原始值后再次检查。模型不能修改课程日期、来源页码和附件关联。邮件 HTML 存在 R2，正文、标题、附件展示名和搜索索引存在 D1；原始 MIME、PDF 和其他附件保持原件，下载使用原文件名。搜索同时覆盖两种语言的正文、HTML 可见文字、附件展示名与来源课程内容。每日提醒直接取对应语言的持久化课程，避免再次生成时遗漏原文差异。
+
+TranslationWorkflow 使用已有 OPENAI_API_KEY 和 gpt-6.1-terra（low reasoning），通过 Responses background 请求处理有界分块。单个 HTTP/持久化步骤失败最多自动重试三次，已完成分块复用；仍失败则记录安全错误并用已有通知 outbox 发邮件。通知失败继续定时重试。任务超时自动终止并通知。发布 en/zh 使用同一个 D1 batch，来源变化时旧任务标为 superseded，不覆盖新数据。缺少目标语言时显示原文并明确说明翻译正在生成或暂不可用。
+
+LESSON_CONFIG.enabled 同时控制自动课程解析和翻译；新邮件、管理导入、自动课程提取和管理课程写入都触发翻译。15 分钟补偿扫描补齐漏掉的入队和既存内容，翻译补扫不限邮件日期。开发环境关闭真实翻译；CI 仅替换 OpenAI HTTP 边界，D1、R2、Workflows 和通知绑定均使用真实本地运行时。
+
+GET 邮件、HTML、课程与提醒 API 接受 `lang=zh|en`；未指定时按 Accept-Language 权重匹配，无匹配则中文。客户端请求始终携带当前选择的 lang。管理翻译端点与历史回填操作见 docs/operations.md。实际邮件与译文、截图只能保存在 Git 忽略的私有目录。

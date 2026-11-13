@@ -6,6 +6,7 @@ import { Icon, RoomDoodle } from "./art";
 import { ClassBadge, ClassFilters, Empty, LoadState } from "./components";
 import { useI18n } from "./i18n";
 import { DayDetails } from "./lesson-details";
+import { TranslationNotice } from "./TranslationNotice";
 export function Plans({
   selected,
   month,
@@ -76,6 +77,7 @@ export function Plans({
                     <RoomDoodle kind={room?.symbol || "sun"} size={85} />
                   </div>
                   <p className="plan-overview">{plan.overview}</p>
+                  <TranslationNotice status={plan.translationStatus} />
                   {plan.sourceKind === "carryover" && (
                     <p className="bring-note">
                       {t(
@@ -101,7 +103,7 @@ export function Plans({
                       <ul>
                         {plan.sourceNotes.map((note) => (
                           <li key={JSON.stringify(note)}>
-                            {note.description}{" "}
+                            <span>{note.description}</span>{" "}
                             <a
                               className="text-link"
                               href={`/api/attachments/${note.attachmentId}?preview=1#page=${note.pages[0] || 1}`}

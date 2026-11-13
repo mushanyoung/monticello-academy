@@ -1,11 +1,17 @@
 import { CLASSES, type ClassId, isClassId } from "../shared/classes";
+import { isLanguage, type Language } from "../shared/language";
 import type { MailSummary } from "../shared/models";
 import { HttpError } from "./errors";
+import { localizedMailSchema } from "./translation-data";
 
 type MailRow = Omit<MailSummary, "class_ids"> & { class_ids: string | null };
-export const SUMMARY_SQL = `SELECT m.id,m.subject,m.sender,m.sender_name,m.sent_at,m.received_at,substr(m.body_text,1,180) snippet,
+function summarySql(language: Language) {
+  return `SELECT m.id,coalesce(l.subject,m.subject) subject,m.sender,m.sender_name,m.sent_at,m.received_at,substr(coalesce(l.body_text,m.body_text),1,180) snippet,
  (SELECT group_concat(class_id) FROM message_classes WHERE message_id=m.id) class_ids,
- (SELECT count(*) FROM attachments WHERE message_id=m.id) attachment_count FROM messages m`;
+ (SELECT count(*) FROM attachments WHERE message_id=m.id) attachment_count,
+ CASE WHEN l.message_id IS NOT NULL THEN 'ready' WHEN EXISTS(SELECT 1 FROM translation_jobs j WHERE j.kind='mail' AND j.entity_id=m.id AND j.source_document=m.raw_key AND j.status='failed') THEN 'unavailable' ELSE 'translating' END translationStatus
+ FROM messages m LEFT JOIN mail_localizations l ON l.message_id=m.id AND l.language='${language}' AND l.source_document=m.raw_key`;
+}
 export function summary(row: MailRow): MailSummary {
   return {
     ...row,
@@ -18,6 +24,8 @@ export function classFilter(value: string | null): ClassId | null {
   return value;
 }
 export async function listMail(db: D1Database, url: URL) {
+  const requested = url.searchParams.get("lang");
+  const language = isLanguage(requested) ? requested : "en";
   const selected = classFilter(url.searchParams.get("class"));
   const q = (url.searchParams.get("q") || "").trim();
   if (q.length > 200)
@@ -38,15 +46,22 @@ export async function listMail(db: D1Database, url: URL) {
   }
   if (q) {
     terms.push(
-      "(instr(m.search_text,?) > 0 OR EXISTS(SELECT 1 FROM attachments a WHERE a.message_id=m.id AND instr(a.extracted_text,?) > 0))",
+      `(instr(m.search_text,?) > 0 OR EXISTS(SELECT 1 FROM attachments a WHERE a.message_id=m.id AND instr(a.extracted_text,?) > 0)
+      OR EXISTS(SELECT 1 FROM mail_localizations ml WHERE ml.message_id=m.id AND instr(ml.search_text,?)>0)
+      OR EXISTS(SELECT 1 FROM plan_localizations pl JOIN lesson_plans p ON p.id=pl.plan_id AND p.document=pl.source_document WHERE instr(lower(pl.document),?)>0 AND (p.source_message_id=m.id OR EXISTS(SELECT 1 FROM json_each(pl.document,'$.sources') s WHERE json_extract(s.value,'$.messageId')=m.id))))`,
     );
-    values.push(q.toLowerCase(), q.toLowerCase());
+    values.push(
+      q.toLowerCase(),
+      q.toLowerCase(),
+      q.toLowerCase(),
+      q.toLowerCase(),
+    );
   }
   const where = terms.length ? ` WHERE ${terms.join(" AND ")}` : "";
   const [rows, count] = await Promise.all([
     db
       .prepare(
-        `${SUMMARY_SQL}${where} ORDER BY m.sent_at ${sort === "oldest" ? "ASC" : "DESC"},m.id LIMIT 30 OFFSET ?`,
+        `${summarySql(language)}${where} ORDER BY m.sent_at ${sort === "oldest" ? "ASC" : "DESC"},m.id LIMIT 30 OFFSET ?`,
       )
       .bind(...values, (page - 1) * 30)
       .all<MailRow>(),
@@ -62,23 +77,54 @@ export async function listMail(db: D1Database, url: URL) {
     pageSize: 30,
   };
 }
-export async function detail(db: D1Database, id: string) {
+export async function detail(
+  db: D1Database,
+  id: string,
+  language: Language = "en",
+) {
   const row = await db
-    .prepare(`${SUMMARY_SQL} WHERE m.id=?`)
+    .prepare(`${summarySql(language)} WHERE m.id=?`)
     .bind(id)
     .first<MailRow>();
   if (!row) throw new HttpError(404, "Email not found.");
   const body = await db
-    .prepare("SELECT body_text,recipients,headers FROM messages WHERE id=?")
-    .bind(id)
-    .first();
+    .prepare(
+      "SELECT coalesce(l.body_text,m.body_text) body_text,m.recipients,m.headers,l.attachments localized_attachments FROM messages m LEFT JOIN mail_localizations l ON l.message_id=m.id AND l.source_document=m.raw_key AND l.language=? WHERE m.id=?",
+    )
+    .bind(language, id)
+    .first<{
+      body_text: string;
+      recipients: string;
+      headers: string;
+      localized_attachments: string | null;
+    }>();
   const attachments = await db
     .prepare(
       "SELECT id,filename,content_type,size,text_status FROM attachments WHERE message_id=? ORDER BY rowid",
     )
     .bind(id)
-    .all();
-  return { ...summary(row), ...body, attachments: attachments.results };
+    .all<{
+      id: string;
+      filename: string;
+      content_type: string;
+      size: number;
+      text_status: string;
+    }>();
+  const names = localizedMailSchema.shape.attachments.parse(
+    JSON.parse(body?.localized_attachments || "[]"),
+  );
+  return {
+    ...summary(row),
+    body_text: body?.body_text || "",
+    recipients: body?.recipients || "",
+    headers: body?.headers || "",
+    attachments: attachments.results.map((file) => ({
+      ...file,
+      original_filename: file.filename,
+      filename:
+        names.find((name) => name.id === file.id)?.filename || file.filename,
+    })),
+  };
 }
 export async function stats(db: D1Database) {
   const [counts, total] = await Promise.all([

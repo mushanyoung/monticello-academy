@@ -5,6 +5,7 @@ import { Icon } from "./art";
 import { ClassBadge, ClassFilters, Empty, LoadState } from "./components";
 import { EmailContent } from "./EmailContent";
 import { useI18n } from "./i18n";
+import { TranslationNotice } from "./TranslationNotice";
 
 function MailReader({
   id,
@@ -37,6 +38,7 @@ function MailReader({
         )}
       </div>
       <h2>{item.subject}</h2>
+      <TranslationNotice status={item.translationStatus} />
       <div className="sender-line">
         <span className="sender-avatar">
           {(item.sender_name || item.sender).slice(0, 1).toUpperCase()}

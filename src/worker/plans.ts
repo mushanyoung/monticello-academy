@@ -1,6 +1,11 @@
 import { CLASSES } from "../shared/classes";
 import { CAMPUS_TIME_ZONE, campusDate } from "../shared/dates";
 import {
+  isLanguage,
+  type Language,
+  type TranslationStatus,
+} from "../shared/language";
+import {
   type ClassHighlight,
   type LessonPlan,
   planSchema,
@@ -15,13 +20,20 @@ interface PlanRow {
   id: string;
   document: string;
   updated_at: string;
+  translationStatus?: TranslationStatus;
 }
 function decode(row: PlanRow): StoredPlan {
   return {
     ...planSchema.parse(JSON.parse(row.document)),
     id: row.id,
     updatedAt: row.updated_at,
+    translationStatus: row.translationStatus || "ready",
   };
+}
+function localizedPlanSql(language: Language) {
+  return `SELECT p.id,coalesce(l.document,p.document) document,p.updated_at,
+ CASE WHEN l.plan_id IS NOT NULL OR '${language}'='en' THEN 'ready' WHEN EXISTS(SELECT 1 FROM translation_jobs j WHERE j.kind='plan' AND j.entity_id=p.id AND j.source_document=p.document AND j.status='failed') THEN 'unavailable' ELSE 'translating' END translationStatus
+ FROM lesson_plans p LEFT JOIN plan_localizations l ON l.plan_id=p.id AND l.source_document=p.document AND l.language='${language}'`;
 }
 export async function savePlan(db: D1Database, input: unknown) {
   const parsed = planSchema.safeParse(input);
@@ -67,23 +79,25 @@ export async function savePlan(db: D1Database, input: unknown) {
   return { id };
 }
 export async function listPlans(db: D1Database, url: URL) {
+  const requested = url.searchParams.get("lang");
+  const language = isLanguage(requested) ? requested : "en";
   const selected = classFilter(url.searchParams.get("class"));
   const month = url.searchParams.get("month");
   if (month && !/^\d{4}-(0[1-9]|1[0-2])$/.test(month))
     throw new HttpError(400, "Invalid month.");
-  const terms = ["status='published'"];
+  const terms = ["p.status='published'"];
   const values: string[] = [];
   if (selected) {
-    terms.push("class_id=?");
+    terms.push("p.class_id=?");
     values.push(selected);
   }
   if (month) {
-    terms.push("month=?");
+    terms.push("p.month=?");
     values.push(month);
   }
   const rows = await db
     .prepare(
-      `SELECT id,document,updated_at FROM lesson_plans WHERE ${terms.join(" AND ")} ORDER BY month DESC,class_id LIMIT 120`,
+      `${localizedPlanSql(language)} WHERE ${terms.join(" AND ")} ORDER BY p.month DESC,p.class_id LIMIT 120`,
     )
     .bind(...values)
     .all<PlanRow>();
@@ -92,7 +106,7 @@ export async function listPlans(db: D1Database, url: URL) {
 export function selectHighlight(
   classId: ClassHighlight["classId"],
   date: string,
-  plan?: LessonPlan,
+  plan?: LessonPlan & { translationStatus?: TranslationStatus },
 ): ClassHighlight {
   const day =
     plan?.status === "published"
@@ -115,14 +129,17 @@ export function selectHighlight(
       plan?.weeks?.filter(
         (week) => week.startDate <= date && week.endDate >= date,
       ) || [],
+    translationStatus: plan?.translationStatus || "ready",
   };
 }
 export async function highlights(db: D1Database, url: URL) {
+  const requested = url.searchParams.get("lang");
+  const language = isLanguage(requested) ? requested : "en";
   const today = campusDate();
   const date = url.searchParams.get("date") || today;
   if (!validDate(date)) throw new HttpError(400, "Invalid calendar date.");
   const rows = await db
-    .prepare("SELECT id,document,updated_at FROM lesson_plans WHERE month=?")
+    .prepare(`${localizedPlanSql(language)} WHERE p.month=?`)
     .bind(date.slice(0, 7))
     .all<PlanRow>();
   const plans = rows.results.map(decode);

@@ -8,6 +8,7 @@ import { Garden, Icon, RoomDoodle } from "./art";
 import { ClassBadge, ClassFilters, Empty, LoadState } from "./components";
 import { useI18n } from "./i18n";
 import { DayDetails } from "./lesson-details";
+import { TranslationNotice } from "./TranslationNotice";
 
 function DayCard({ highlight }: { highlight: ClassHighlight }) {
   const { t, className } = useI18n();
@@ -25,6 +26,7 @@ function DayCard({ highlight }: { highlight: ClassHighlight }) {
       </div>
       {day ? (
         <div className="day-content">
+          <TranslationNotice status={highlight.translationStatus} />
           <span className="small-label">
             {day.noSchool ? t("NO SCHOOL") : t("TODAY'S LITTLE ADVENTURE")}
           </span>

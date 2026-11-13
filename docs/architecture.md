@@ -33,3 +33,5 @@ R2 使用内容寻址 key，在 D1 事务前完成写入。失败会抛出以便
 ## 持久化课程处理
 
 同一模块导出 LessonWorkflow，持久化执行 PDF 解析与发布。D1 job/outbox 和定时补偿使邮件请求结束后仍可继续；协议见 docs/lesson-plans.md。R2 lesson-results 保存私有模型输出；公开附件 API 只读取 D1 attachments 中的对象，不能任意指定 R2 key。
+
+TranslationWorkflow 独立保存邮件与课程的 en/zh 版本；查询按语言关联当前来源快照，格式化正文读取翻译后的 R2 HTML，再经过与原文相同的隔离净化。来源 MIME 仍用于 CID 附件映射。未完成翻译时明确显示原文回退。每天的提醒直接来自持久化的双语课程，不重复调用模型；协议与并发发布规则见 docs/localization.md。

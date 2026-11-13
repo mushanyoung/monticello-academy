@@ -1,5 +1,6 @@
 import PostalMime from "postal-mime";
 import sanitizeHtml from "sanitize-html";
+import type { Language } from "../shared/language";
 import { HttpError, MAX_EMAIL_BYTES } from "./errors";
 import { sha256 } from "./mail";
 
@@ -31,6 +32,7 @@ export function sanitizeEmail(
   html: string,
   inlineImages: ReadonlyMap<string, string> = new Map(),
   loadImages = false,
+  language: Language = "en",
 ) {
   let externalImages = 0;
   const content = sanitizeHtml(html, {
@@ -121,7 +123,10 @@ export function sanitizeEmail(
         };
         delete cleaned.src;
         if (safe) cleaned.src = safe;
-        else cleaned.alt = attribs.alt || "Image not loaded";
+        else
+          cleaned.alt =
+            attribs.alt ||
+            (language === "zh" ? "图片未加载" : "Image not loaded");
         return { tagName, attribs: cleaned };
       },
     },
@@ -137,6 +142,7 @@ export function emailDocument(
   text: string,
   inlineImages: ReadonlyMap<string, string>,
   loadImages: boolean,
+  language: Language = "en",
 ) {
   const hasHtml = Boolean(html.trim());
   const result = sanitizeEmail(
@@ -145,8 +151,9 @@ export function emailDocument(
       : `<pre>${text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")}</pre>`,
     inlineImages,
     loadImages,
+    language,
   );
-  return `<!doctype html><html data-email-ready="true" data-has-html="${hasHtml}" data-external-images="${result.externalImages}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Email content</title><style>
+  return `<!doctype html><html lang="${language === "zh" ? "zh-CN" : "en"}" data-email-ready="true" data-has-html="${hasHtml}" data-external-images="${result.externalImages}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${language === "zh" ? "邮件正文" : "Email content"}</title><style>
 html { color-scheme: light; }
 body { margin: 0; padding: 8px; background: white; color: #222; font: 16px/1.5 Arial, sans-serif; overflow-wrap: anywhere; }
 img { max-width: 100% !important; height: auto !important; }
@@ -155,7 +162,12 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
 </style></head><body>${result.content}</body></html>`;
 }
 
-export async function mailView(env: Env, id: string, loadImages: boolean) {
+export async function mailView(
+  env: Env,
+  id: string,
+  loadImages: boolean,
+  language: Language = "en",
+) {
   const row = await env.DB.prepare("SELECT raw_key FROM messages WHERE id=?")
     .bind(id)
     .first<{ raw_key: string }>();
@@ -189,8 +201,25 @@ export async function mailView(env: Env, id: string, loadImages: boolean) {
         `/api/attachments/${stored.id}?preview=1`,
       );
   }
+  const localized = await env.DB.prepare(
+    "SELECT html_key,body_text FROM mail_localizations WHERE message_id=? AND language=? AND source_document=?",
+  )
+    .bind(id, language, row.raw_key)
+    .first<{ html_key: string; body_text: string }>();
+  let html = mail.html || "",
+    text = mail.text || "";
+  if (localized) {
+    const translated = await env.MAIL_BUCKET.get(localized.html_key);
+    if (!translated)
+      throw new HttpError(
+        503,
+        "The translated email preview is temporarily unavailable.",
+      );
+    html = await translated.text();
+    text = localized.body_text;
+  }
   return new Response(
-    emailDocument(mail.html || "", mail.text || "", inlineImages, loadImages),
+    emailDocument(html, text, inlineImages, loadImages, language),
     {
       headers: {
         "Content-Type": "text/html; charset=utf-8",

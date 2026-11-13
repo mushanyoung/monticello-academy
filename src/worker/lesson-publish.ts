@@ -7,6 +7,7 @@ import {
 import { type LessonPlan, planSchema } from "../shared/plans";
 import { sha256 } from "./mail";
 import { LessonError } from "./openai";
+import { translateNewContent } from "./translation-jobs";
 
 // Compare-and-swap prevents concurrently finishing PDFs from losing each other's dates.
 async function mergePlan(db: D1Database, incoming: LessonPlan) {
@@ -81,5 +82,11 @@ export async function publishExtraction(
     .bind(source.messageId, extraction.classId)
     .run();
   for (const plan of plans) await mergePlan(env.DB, plan);
-  return plans.map((plan) => `${plan.classId}:${plan.month}`);
+  const ids = plans.map((plan) => `${plan.classId}:${plan.month}`);
+  try {
+    await translateNewContent(env, "plan", ids);
+  } catch {
+    console.error(JSON.stringify({ event: "translation_enqueue_failed" }));
+  }
+  return ids;
 }

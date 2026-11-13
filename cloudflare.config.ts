@@ -16,6 +16,10 @@ export default defineConfig(({ mode }) => {
       compatibilityDate: "2026-11-13",
       entrypoint,
       exports: {
+        TranslationWorkflow: workerExports.workflow({
+          name: `${deployment.workerName}-translations`,
+          concurrency: { limit: 3 },
+        }),
         LessonWorkflow: workerExports.workflow({
           name: `${deployment.workerName}-lessons`,
           concurrency: { limit: 3 },
@@ -59,6 +63,11 @@ export default defineConfig(({ mode }) => {
           exportName: "LessonWorkflow",
         }),
         LESSON_EMAIL: bindings.sendEmail(),
+        TRANSLATIONS: bindings.workflow({
+          name: `${deployment.workerName}-translations`,
+          worker: deployment.workerName,
+          exportName: "TranslationWorkflow",
+        }),
       },
       triggers: [
         triggers.scheduled({ schedule: "*/15 * * * *" }),

@@ -1,8 +1,9 @@
 // Local HTTP boundary fixture. Never included in the Worker or used in production.
 import { createServer } from "node:http";
 import { fixtureExtraction } from "../tests/fixtures/extraction.ts";
+import { fixtureTranslation } from "../tests/fixtures/translation.ts";
 
-const responses = new Map<string, ReturnType<typeof fixtureExtraction>>();
+const responses = new Map<string, unknown>();
 const attempts = new Map<string, number>();
 createServer(async (request, response) => {
   response.setHeader("Content-Type", "application/json");
@@ -19,6 +20,37 @@ createServer(async (request, response) => {
     const chunks: Buffer[] = [];
     for await (const chunk of request) chunks.push(Buffer.from(chunk));
     const body = JSON.parse(Buffer.concat(chunks).toString());
+    if (body.text?.format?.name === "translated_segments") {
+      if (
+        body.model !== "gpt-6.1-terra" ||
+        body.background !== true ||
+        body.store !== false ||
+        body.text.format.strict !== true
+      )
+        return reply({ error: "Incorrect translation protocol" }, 400);
+      const input = JSON.parse(body.input[1].content) as {
+        segments: { id: string; text: string; context: string }[];
+      };
+      const key = JSON.stringify(input);
+      const attempt = (attempts.get(key) || 0) + 1;
+      attempts.set(key, attempt);
+      if (key.includes("translation-retry") && attempt <= 4)
+        return reply(
+          { error: { message: "private translation diagnostic" } },
+          403,
+        );
+      if (key.includes("translation-transient") && attempt === 1)
+        return reply({ error: "Temporary translation outage" }, 503);
+      const id = `resp_${crypto.randomUUID().replaceAll("-", "")}`;
+      responses.set(id, {
+        segments: input.segments.map((segment) => ({
+          id: segment.id,
+          en: segment.text,
+          zh: fixtureTranslation(segment.text),
+        })),
+      });
+      return reply({ id, status: "queued" });
+    }
     const file = body.input?.[1]?.content?.[0];
     if (
       body.model !== "gpt-6.1-terra" ||

@@ -1,4 +1,5 @@
 import type { ClassId } from "./classes";
+import type { TranslationStatus } from "./language";
 export interface MailSummary {
   id: string;
   subject: string;
@@ -9,6 +10,7 @@ export interface MailSummary {
   snippet: string;
   class_ids: ClassId[];
   attachment_count: number;
+  translationStatus?: TranslationStatus;
 }
 export interface Attachment {
   id: string;
@@ -16,6 +18,7 @@ export interface Attachment {
   content_type: string;
   size: number;
   text_status: string;
+  original_filename?: string;
 }
 export interface MailDetail extends MailSummary {
   body_text: string;

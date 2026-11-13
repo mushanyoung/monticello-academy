@@ -1,4 +1,5 @@
 import { isClassId } from "../shared/classes";
+import { requestLanguage } from "../shared/language";
 import { parseMailConfig } from "../shared/mail-config";
 import { isAdmin } from "./auth";
 import { HttpError, MAX_EMAIL_BYTES, readLimited } from "./errors";
@@ -9,8 +10,11 @@ import { mailView } from "./mail-view";
 import { checkLessonModel } from "./openai";
 import { highlights, listPlans, savePlan } from "./plans";
 import { detail, listMail, stats } from "./queries";
+import { translationAdmin } from "./translation-admin";
+import { reconcileTranslations, translateNewContent } from "./translation-jobs";
 
 export { LessonWorkflow } from "./lesson-workflow";
+export { TranslationWorkflow } from "./translation-workflow";
 
 async function route(
   request: Request,
@@ -19,6 +23,10 @@ async function route(
 ): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname;
+  const language = requestLanguage(request);
+  url.searchParams.set("lang", language);
+  if (path.startsWith("/api/admin/translations"))
+    return translationAdmin(request, env);
   if (path.startsWith("/api/admin/lessons")) return lessonAdmin(request, env);
   if (path === "/api/site")
     return Response.json({
@@ -53,6 +61,15 @@ async function route(
         console.error(JSON.stringify({ event: "lesson_enqueue_failed" })),
       ),
     );
+    ctx.waitUntil(
+      translateNewContent(
+        env,
+        "mail",
+        messages.map((message) => message.id),
+      ).catch(() =>
+        console.error(JSON.stringify({ event: "translation_enqueue_failed" })),
+      ),
+    );
     return Response.json(messages.length === 1 ? messages[0] : { messages }, {
       status: 201,
     });
@@ -67,7 +84,13 @@ async function route(
     } catch {
       throw new HttpError(400, "Invalid JSON.");
     }
-    return Response.json(await savePlan(env.DB, input), { status: 201 });
+    const saved = await savePlan(env.DB, input);
+    ctx.waitUntil(
+      translateNewContent(env, "plan", [saved.id]).catch(() =>
+        console.error(JSON.stringify({ event: "translation_enqueue_failed" })),
+      ),
+    );
+    return Response.json(saved, { status: 201 });
   }
   if (request.method !== "GET" && request.method !== "HEAD")
     throw new HttpError(405, "Method not allowed.");
@@ -78,9 +101,15 @@ async function route(
   if (path === "/api/stats") return Response.json(await stats(env.DB));
   const viewMatch = path.match(/^\/api\/mail\/([a-f0-9]{64})\/content$/);
   if (viewMatch?.[1])
-    return mailView(env, viewMatch[1], url.searchParams.get("images") === "1");
+    return mailView(
+      env,
+      viewMatch[1],
+      url.searchParams.get("images") === "1",
+      language,
+    );
   const mailMatch = path.match(/^\/api\/mail\/([a-f0-9]{64})$/);
-  if (mailMatch?.[1]) return Response.json(await detail(env.DB, mailMatch[1]));
+  if (mailMatch?.[1])
+    return Response.json(await detail(env.DB, mailMatch[1], language));
   const download = path.match(
     /^\/api\/(attachments|original)\/([a-f0-9]{64})$/,
   );
@@ -152,6 +181,7 @@ export default {
   },
   async scheduled(_event, env, ctx) {
     ctx.waitUntil(reconcileLessons(env));
+    ctx.waitUntil(reconcileTranslations(env));
   },
   async email(message, env, ctx) {
     if (message.rawSize > MAX_EMAIL_BYTES) {
@@ -187,6 +217,17 @@ export default {
           result.map((message) => message.id),
         ).catch(() =>
           console.error(JSON.stringify({ event: "lesson_enqueue_failed" })),
+        ),
+      );
+      ctx.waitUntil(
+        translateNewContent(
+          env,
+          "mail",
+          result.map((message) => message.id),
+        ).catch(() =>
+          console.error(
+            JSON.stringify({ event: "translation_enqueue_failed" }),
+          ),
         ),
       );
       console.log(

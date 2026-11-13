@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { ClassId } from "./classes";
+import type { TranslationStatus } from "./language";
 export function validDate(value: string): boolean {
   return (
     /^\d{4}-\d{2}-\d{2}$/.test(value) &&
@@ -120,6 +121,7 @@ export type LessonDay = z.infer<typeof daySchema>;
 export interface StoredPlan extends LessonPlan {
   id: string;
   updatedAt: string;
+  translationStatus?: TranslationStatus;
 }
 export interface ClassHighlight {
   classId: ClassId;
@@ -132,6 +134,7 @@ export interface ClassHighlight {
   monthlyReminders?: string[];
   sourceNotes?: string[];
   weeklyFocus?: z.infer<typeof weekSchema>[];
+  translationStatus?: TranslationStatus;
 }
 export interface Highlights {
   date: string;

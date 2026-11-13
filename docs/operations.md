@@ -64,3 +64,17 @@ cf 配置声明 LessonWorkflow、LESSONS workflow binding、LESSON_EMAIL sendEma
 - POST /api/admin/lessons/notification-test：向固定收件人发送测试通知，返回 sent/pending 和提供商 message ID。sent 表示 Cloudflare 接受发送，不代表收件箱已读取。
 
 排障先看 job.error_code、通知状态与 Workflow 步骤。鉴权或余额问题修复后重试；替换损坏 PDF 会产生新内容任务。不要关闭校验、删除来源差异或设置人工审批来绕过失败。
+
+## 翻译与历史回填
+
+同一 OPENAI_API_KEY 用于邮件、课程的双语翻译；无需新的浏览器密钥。部署声明 TranslationWorkflow 和 TRANSLATIONS binding，应用 0005 迁移后部署。LESSON_CONFIG.enabled 也控制自动翻译；新邮件及课程写入自动入队，定时补偿会扫描所有未处理的历史来源。
+
+下列接口均要求 Bearer IMPORT_TOKEN，不向公开页面返回私有模型输入：
+
+- GET /api/admin/translations：最近 300 个任务和按类型、状态统计。
+- POST /api/admin/translations：`{"kind":"mail|plan","ids":["<entity-id>"],"notify":true}`，每批 1–30 个当前实体。历史回填可用 notify=false，避免批量操作产生重复邮件；任务按来源和翻译器版本去重。
+- GET /api/admin/translations/:id/input：读取该任务的私有分块输入，排障文件不得进入 Git。
+- POST /api/admin/translations/:id/retry：仅重试 failed 任务，复用已完成分块，重新请求失败分块。
+- POST /api/admin/translations/reconcile：立即补扫、检测失效任务并重试通知投递。
+
+回填先列出已归档邮件 ID 和已发布课程 ID，按两种 kind 入队，再查询任务统计。验收不能只看任务 completed：分别请求 lang=en 与 lang=zh，检查邮件格式、下载原件、来源关联、每月日期数量、全部差异记录、今日／明日提醒和两种语言搜索。手机与桌面均切换语言并刷新，验证客户端偏好保留。保留原始 PDF，网站提供完整双语课程，不生成中文 PDF。
