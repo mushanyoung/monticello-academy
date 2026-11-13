@@ -44,3 +44,5 @@ POST `/api/import` 使用 Bearer IMPORT_TOKEN，body 为原始 .eml；`?class=su
 `/api/import` 也支持带有多封 `.eml` 的批量转发原件。拆分后为一封时保持 `{id,classIds}` 响应，多封时返回 `{messages:[{id,classIds},...]}`，每个条目对应一次原件处理；重复原件可返回相同 id。格式错误的批次整体拒绝且不写入，存储失败可重试整批。
 
 `/api/health` 检查 Worker 可用；`/api/stats`、`/api/mail` 验证 D1；附件通过 Worker 从私有 R2 读取。运行日志只记录事件、内部 ID 和错误类型。失败投递可重试，去重规则保证幂等。迁移按编号应用；已有数据回滚须先备份 D1/R2。
+
+`GET /api/admin/ai` 需要 Bearer IMPORT_TOKEN，可检查 Cloudflare 内的 API key 是否能访问配置的课程解析模型。该端点不返回密钥或账户模型列表，不产生模型推理费用；本地与 CI 没有 key 时返回 503。

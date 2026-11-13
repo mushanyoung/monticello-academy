@@ -4,6 +4,7 @@ import { isAdmin } from "./auth";
 import { HttpError, MAX_EMAIL_BYTES, readLimited } from "./errors";
 import { ingestMail } from "./mail";
 import { mailView } from "./mail-view";
+import { checkLessonModel } from "./openai";
 import { highlights, listPlans, savePlan } from "./plans";
 import { detail, listMail, stats } from "./queries";
 
@@ -15,6 +16,11 @@ async function route(request: Request, env: Env): Promise<Response> {
       inboundAddress: parseMailConfig(env.MAIL_CONFIG).inboundAddress,
     });
   if (path === "/api/health") return Response.json({ status: "ok" });
+  if (path === "/api/admin/ai" && request.method === "GET") {
+    if (!(await isAdmin(request, env)))
+      throw new HttpError(401, "Import credentials required.");
+    return Response.json(await checkLessonModel(env.OPENAI_API_KEY));
+  }
   if (path === "/api/import" && request.method === "POST") {
     if (!(await isAdmin(request, env)))
       throw new HttpError(401, "Import credentials required.");
