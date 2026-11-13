@@ -108,6 +108,22 @@ describe("lesson document rules", () => {
     expect(mergeExtractedPlan(incoming, carryover).days[0]?.title).toBe(
       "Updated December activity",
     );
+    expect(mergeExtractedPlan(incoming, carryover).alternateDays).toEqual(
+      carryover.days,
+    );
+    expect(mergeExtractedPlan(carryover, incoming).alternateDays).toEqual(
+      carryover.days,
+    );
+    const conflict = fixtureExtraction();
+    conflict.issues.push({
+      code: "conflicting-source",
+      description: "Calendar says blue; weekly table says red.",
+      pages: [1, 2],
+    });
+    expect(
+      extractedPlans(conflict, fixtureLessonSource)[0]?.sourceNotes?.[0]
+        ?.description,
+    ).toBe("Calendar says blue; weekly table says red.");
     expect(() =>
       mergeExtractedPlan(incoming, { ...carryover, month: "2028-01" }),
     ).toThrow("different classroom months");

@@ -64,19 +64,12 @@ test("publishes source-linked monthly plans and updates daily highlights", async
         data: { ...plan, status: "draft" },
       })
     ).status(),
-  ).toBe(201);
-  const hidden = await (
+  ).toBe(422);
+  const retained = await (
     await request.get("/api/highlights?date=2040-11-13")
   ).json();
-  expect(hidden.classes[0].status).toBe("awaiting-review");
-  expect(hidden.classes[0].day).toBeNull();
-  expect(
-    (
-      await (
-        await request.get("/api/plans?month=2040-11&class=sunshine")
-      ).json()
-    ).items,
-  ).toHaveLength(0);
+  expect(retained.classes[0].status).toBe("ready");
+  expect(retained.classes[0].day.bring).toEqual(["Rain boots"]);
   expect((await request.get("/api/highlights?date=2026-02-30")).status()).toBe(
     400,
   );

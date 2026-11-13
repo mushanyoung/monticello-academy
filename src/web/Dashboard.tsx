@@ -6,6 +6,7 @@ import type { ClassHighlight, Highlights } from "../shared/plans";
 import { displayDate, href, useApi } from "./api";
 import { Garden, Icon, RoomDoodle } from "./art";
 import { ClassBadge, ClassFilters, Empty, LoadState } from "./components";
+import { DayDetails } from "./lesson-details";
 
 function DayCard({ highlight }: { highlight: ClassHighlight }) {
   const room = CLASSES.find((c) => c.id === highlight.classId);
@@ -51,15 +52,37 @@ function DayCard({ highlight }: { highlight: ClassHighlight }) {
             </div>
           )}
           {day.note && <p className="day-note">{day.note}</p>}
+          {!!highlight.monthlyReminders?.length && (
+            <details className="day-note">
+              <summary>All-month reminders</summary>
+              {highlight.monthlyReminders.map((item) => (
+                <p key={item}>{item}</p>
+              ))}
+            </details>
+          )}
+          {!!highlight.alternatives?.length && (
+            <details className="day-note" open>
+              <summary>Also in the source documents</summary>
+              {highlight.alternatives.map((entry) => (
+                <DayDetails key={JSON.stringify(entry)} day={entry} />
+              ))}
+            </details>
+          )}
+          {!!highlight.sourceNotes?.length && (
+            <details className="day-note">
+              <summary>Source notes ({highlight.sourceNotes.length})</summary>
+              {highlight.sourceNotes.map((note) => (
+                <p key={note}>{note}</p>
+              ))}
+            </details>
+          )}
         </div>
       ) : (
         <div className="day-content pending">
           <span className="small-label">
-            {highlight.status === "awaiting-review"
-              ? "PLAN AWAITING CONFIRMATION"
-              : highlight.status === "no-day"
-                ? "NO ENTRY FOR THIS DATE"
-                : "A NEW PAGE IS WAITING"}
+            {highlight.status === "no-day"
+              ? "NO ENTRY FOR THIS DATE"
+              : "A NEW PAGE IS WAITING"}
           </span>
           <h4>
             {highlight.status === "no-day"
@@ -69,9 +92,7 @@ function DayCard({ highlight }: { highlight: ClassHighlight }) {
           <p>
             {highlight.status === "no-day"
               ? "The monthly plan doesn't list this day. Check classroom mail for updates."
-              : highlight.status === "awaiting-review"
-                ? "This month's plan is being checked. Classroom mail has the original details."
-                : "Once the classroom's lesson plan is added, you'll find activities and things to remember right here."}
+              : "Once the classroom's lesson plan is added, you'll find activities and things to remember right here."}
           </p>
           <span className="handwritten">a little more to discover soon ♡</span>
         </div>

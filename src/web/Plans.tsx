@@ -4,6 +4,7 @@ import type { StoredPlan } from "../shared/plans";
 import { displayDate, href, useApi } from "./api";
 import { Icon, RoomDoodle } from "./art";
 import { ClassBadge, ClassFilters, Empty, LoadState } from "./components";
+import { DayDetails } from "./lesson-details";
 export function Plans({
   selected,
   month,
@@ -69,6 +70,45 @@ export function Plans({
                     <RoomDoodle kind={room?.symbol || "sun"} size={85} />
                   </div>
                   <p className="plan-overview">{plan.overview}</p>
+                  {plan.sourceKind === "carryover" && (
+                    <p className="bring-note">
+                      Partial month · These dates appear in an adjacent month's
+                      PDF.
+                    </p>
+                  )}
+                  {!!plan.monthlyReminders?.length && (
+                    <div className="objectives">
+                      <span className="small-label">ALL MONTH LONG</span>
+                      <ul>
+                        {plan.monthlyReminders.map((item) => (
+                          <li key={item}>{item}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {!!plan.sourceNotes?.length && (
+                    <div className="objectives">
+                      <span className="small-label">
+                        NOTES FROM THE ORIGINAL SOURCES
+                      </span>
+                      <ul>
+                        {plan.sourceNotes.map((note) => (
+                          <li key={JSON.stringify(note)}>
+                            {note.description}{" "}
+                            <a
+                              className="text-link"
+                              href={`/api/attachments/${note.attachmentId}?preview=1#page=${note.pages[0] || 1}`}
+                            >
+                              PDF
+                              {note.pages.length
+                                ? ` · p. ${note.pages.join(", ")}`
+                                : ""}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                   {plan.objectives.length > 0 && (
                     <div className="objectives">
                       <span className="small-label">
@@ -82,6 +122,28 @@ export function Plans({
                     </div>
                   )}
                   <div className="plan-days">
+                    {plan.weeks?.map((week) => (
+                      <details className="plan-day" key={JSON.stringify(week)}>
+                        <summary>
+                          <span>
+                            <strong>{week.theme}</strong>
+                            <span>
+                              {displayDate(week.startDate)} –{" "}
+                              {displayDate(week.endDate)}
+                            </span>
+                          </span>
+                          <Icon name="chevron" size={18} />
+                        </summary>
+                        <div className="plan-day-body">
+                          {week.focus.map((focus) => (
+                            <p key={focus.area}>
+                              <strong>{focus.area}:</strong>{" "}
+                              {focus.items.join(" · ")}
+                            </p>
+                          ))}
+                        </div>
+                      </details>
+                    ))}
                     {[...plan.days]
                       .sort((a, b) => a.date.localeCompare(b.date))
                       .map((day) => (
@@ -126,11 +188,42 @@ export function Plans({
                               </p>
                             ))}
                             {day.note && <p>{day.note}</p>}
+                            {day.sourceAttachmentId && (
+                              <a
+                                className="text-link"
+                                href={`/api/attachments/${day.sourceAttachmentId}?preview=1#page=${day.sourcePages?.[0] || 1}`}
+                              >
+                                Source PDF · p.{" "}
+                                {day.sourcePages?.join(", ") || "1"}
+                              </a>
+                            )}
+                            {plan.alternateDays
+                              ?.filter((entry) => entry.date === day.date)
+                              .map((entry) => (
+                                <div
+                                  className="objectives"
+                                  key={JSON.stringify(entry)}
+                                >
+                                  <span className="small-label">
+                                    ALSO IN THE SOURCE DOCUMENTS
+                                  </span>
+                                  <DayDetails day={entry} />
+                                </div>
+                              ))}
                           </div>
                         </details>
                       ))}
                   </div>
                   <div className="plan-source">
+                    {plan.sources?.map((source) => (
+                      <a
+                        className="text-link"
+                        key={source.attachmentId}
+                        href={`/api/attachments/${source.attachmentId}?preview=1`}
+                      >
+                        {source.filename}
+                      </a>
+                    ))}
                     <a
                       className="text-link"
                       href={href({

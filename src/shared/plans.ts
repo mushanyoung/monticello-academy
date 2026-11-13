@@ -55,12 +55,25 @@ export const planSchema = z
     title: shortText,
     theme: shortText,
     overview: z.string().max(5000),
-    objectives: z.array(shortText).max(60),
+    objectives: z.array(shortText).max(300),
     sourceMessageId: z.string().regex(/^[a-f0-9]{64}$/),
-    status: z.enum(["draft", "published"]),
+    status: z.literal("published"),
     days: z.array(daySchema).max(31),
+    alternateDays: z.array(daySchema).max(310).optional(),
+    sourceNotes: z
+      .array(
+        z
+          .object({
+            attachmentId: z.string().regex(/^[a-f0-9]{64}$/),
+            description: shortText,
+            pages: z.array(z.number().int().min(1).max(100)).max(20),
+          })
+          .strict(),
+      )
+      .max(200)
+      .optional(),
     monthlyReminders: z.array(shortText).max(40).optional(),
-    weeks: z.array(weekSchema).max(12).optional(),
+    weeks: z.array(weekSchema).max(60).optional(),
     sources: z.array(planSourceSchema).max(20).optional(),
     sourceKind: z.enum(["monthly", "carryover"]).optional(),
   })
@@ -110,11 +123,14 @@ export interface StoredPlan extends LessonPlan {
 }
 export interface ClassHighlight {
   classId: ClassId;
-  status: "ready" | "no-day" | "awaiting-review" | "awaiting-plan";
+  status: "ready" | "no-day" | "awaiting-plan";
   planId: string | null;
   theme: string | null;
   day: LessonDay | null;
   sourceMessageId: string | null;
+  alternatives?: LessonDay[];
+  monthlyReminders?: string[];
+  sourceNotes?: string[];
 }
 export interface Highlights {
   date: string;

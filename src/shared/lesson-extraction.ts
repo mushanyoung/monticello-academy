@@ -238,6 +238,13 @@ export function extractedPlans(
       sourceKind: month === extraction.documentMonth ? "monthly" : "carryover",
       sources: [{ ...source, documentMonth: extraction.documentMonth }],
       monthlyReminders: extraction.monthlyReminders,
+      sourceNotes: validateExtraction(extraction, source.filename).map(
+        (issue) => ({
+          attachmentId: source.attachmentId,
+          description: issue.description,
+          pages: issue.pages,
+        }),
+      ),
       weeks: extraction.weeks
         .filter(
           (week) =>
@@ -278,9 +285,34 @@ export function mergeExtractedPlan(
       source,
     ]),
   );
+  const alternatives = [
+    ...(secondary.alternateDays || []),
+    ...(primary.alternateDays || []),
+  ];
+  for (const day of secondary.days) {
+    const chosen = days.get(day.date);
+    if (chosen && JSON.stringify(chosen) !== JSON.stringify(day))
+      alternatives.push(day);
+  }
+  const unique = <T>(items: T[]) => [
+    ...new Map(items.map((item) => [JSON.stringify(item), item])).values(),
+  ];
   return planSchema.parse({
     ...primary,
     days: [...days.values()].sort((a, b) => a.date.localeCompare(b.date)),
     sources: [...sources.values()],
+    alternateDays: unique(alternatives).filter(
+      (day) => JSON.stringify(day) !== JSON.stringify(days.get(day.date)),
+    ),
+    sourceNotes: unique([
+      ...(secondary.sourceNotes || []),
+      ...(primary.sourceNotes || []),
+    ]),
+    monthlyReminders: unique([
+      ...(secondary.monthlyReminders || []),
+      ...(primary.monthlyReminders || []),
+    ]),
+    objectives: unique([...primary.objectives, ...secondary.objectives]),
+    weeks: unique([...(primary.weeks || []), ...(secondary.weeks || [])]),
   });
 }

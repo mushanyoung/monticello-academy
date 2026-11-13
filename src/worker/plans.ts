@@ -100,17 +100,15 @@ export function selectHighlight(
       : undefined;
   return {
     classId,
-    status: !plan
-      ? "awaiting-plan"
-      : plan.status === "draft"
-        ? "awaiting-review"
-        : !day
-          ? "no-day"
-          : "ready",
+    status: !plan ? "awaiting-plan" : !day ? "no-day" : "ready",
     planId: plan ? `${classId}:${plan.month}` : null,
     theme: plan?.status === "published" ? plan.theme : null,
     day: day || null,
     sourceMessageId: plan?.status === "published" ? plan.sourceMessageId : null,
+    alternatives:
+      plan?.alternateDays?.filter((entry) => entry.date === date) || [],
+    monthlyReminders: plan?.monthlyReminders || [],
+    sourceNotes: plan?.sourceNotes?.map((note) => note.description) || [],
   };
 }
 export async function highlights(db: D1Database, url: URL) {

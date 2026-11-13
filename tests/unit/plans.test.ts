@@ -17,16 +17,13 @@ describe("lesson plan rules", () => {
         .success,
     ).toBe(false);
   });
-  it("distinguishes unpublished, missing day and a confirmed plan", () => {
+  it("distinguishes absent plans and dates and rejects approval states", () => {
     expect(selectHighlight("sunshine", "2040-11-13").status).toBe(
       "awaiting-plan",
     );
-    const draft = selectHighlight("sunshine", "2040-11-13", {
-      ...plan,
-      status: "draft",
-    });
-    expect(draft.status).toBe("awaiting-review");
-    expect(draft.day).toBeNull();
+    expect(planSchema.safeParse({ ...plan, status: "draft" }).success).toBe(
+      false,
+    );
     expect(selectHighlight("sunshine", "2040-11-14", plan).status).toBe(
       "no-day",
     );
