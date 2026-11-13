@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import type { MailDetail } from "../../src/shared/models";
 import { htmlMail, pixel } from "../fixtures/html-mail";
 
 const headers = { Authorization: "Bearer local-e2e-import-token" };
@@ -52,6 +53,7 @@ test("reads original styling and inline images while isolating active content an
     "naturalWidth",
     1,
   );
+  await expect(page.locator(".attachments")).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: "Load external images" }),
   ).toBeVisible();
@@ -65,6 +67,10 @@ test("reads original styling and inline images while isolating active content an
   ).toHaveAttribute("target", "_blank");
   await page.getByRole("button", { name: "Plain text", exact: true }).click();
   await expect(page.locator(".mail-body")).toContainText("Bring rain boots");
+  await expect(page.locator(".attachments h3")).toHaveText("1 attachment");
+  await expect(
+    page.getByRole("link", { name: "Download art.png", exact: true }),
+  ).toBeVisible();
   await page
     .getByRole("button", { name: "Original formatting", exact: true })
     .click();
@@ -74,6 +80,7 @@ test("reads original styling and inline images while isolating active content an
     1,
   );
   expect(externalRequests).toBe(1);
+  await expect(page.locator(".attachments")).toHaveCount(0);
   expect(errors).toEqual([]);
   await expect(page.locator("html")).not.toHaveAttribute("data-browser-error");
   expect(
@@ -113,10 +120,91 @@ test("falls back to readable text when formatting fails and can retry", async ({
     page.getByRole("region", { name: "Message content" }).getByRole("status"),
   ).toContainText("Original formatting couldn't be loaded");
   await expect(page.locator(".mail-body")).toContainText("Bring rain boots");
+  await expect(
+    page.getByRole("link", { name: "Download art.png", exact: true }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Original formatting" }).click();
   await expect(
     page
       .frameLocator(".email-frame")
       .getByRole("heading", { name: "A colorful week" }),
   ).toBeVisible();
+  await expect(page.locator(".attachments")).toHaveCount(0);
+});
+
+test("keeps ordinary, unreferenced, hidden and failed inline files downloadable", async ({
+  page,
+  request,
+}) => {
+  const imported = await request.post("/api/import", {
+    headers,
+    data: htmlMail(`attachments-${crypto.randomUUID()}`, "mixed"),
+  });
+  expect(imported.status()).toBe(201);
+  const { id } = await imported.json();
+  const detail: MailDetail = await (
+    await request.get(`/api/mail/${id}`)
+  ).json();
+  expect(detail.attachments).toHaveLength(6);
+  const broken = detail.attachments.find(
+    (file) => file.filename === "broken.png",
+  );
+  if (!broken) throw new Error("Missing broken-image fixture");
+  await page.route(`**/api/attachments/${broken.id}?preview=1`, (route) =>
+    route.fulfill({ status: 503, body: "Temporarily unavailable" }),
+  );
+  await page.goto(`/?view=mail&id=${id}`);
+  const frame = page.frameLocator(".email-frame");
+  await expect(frame.getByAltText("Classroom drawing")).toHaveJSProperty(
+    "naturalWidth",
+    1,
+  );
+  await expect(frame.getByAltText("Unavailable drawing")).toHaveJSProperty(
+    "naturalWidth",
+    0,
+  );
+  await expect(page.locator(".attachments h3")).toHaveText("5 attachments");
+  await expect(
+    page.getByRole("link", { name: "Download art.png", exact: true }),
+  ).toHaveCount(0);
+  for (const filename of [
+    "broken.png",
+    "hidden.png",
+    "unreferenced.png",
+    "photo.png",
+    "lesson.pdf",
+  ]) {
+    const download = page.getByRole("link", {
+      name: `Download ${filename}`,
+      exact: true,
+    });
+    await expect(download).toBeVisible();
+    const url = await download.getAttribute("href");
+    if (!url) throw new Error("Missing attachment download URL");
+    const file = await request.get(url);
+    expect(file.status()).toBe(200);
+    expect(file.headers()["content-disposition"]).toContain("attachment;");
+    expect((await file.body()).length).toBeGreaterThan(0);
+  }
+  await page.getByRole("button", { name: "Plain text", exact: true }).click();
+  await expect(page.locator(".attachments h3")).toHaveText("6 attachments");
+  await expect(
+    page.getByRole("link", { name: "Download art.png", exact: true }),
+  ).toBeVisible();
+  // Retrying original formatting after recovery also updates the visible count.
+  await page.unroute(`**/api/attachments/${broken.id}?preview=1`);
+  await page
+    .getByRole("button", { name: "Original formatting", exact: true })
+    .click();
+  await expect(frame.getByAltText("Unavailable drawing")).toHaveJSProperty(
+    "naturalWidth",
+    1,
+  );
+  await expect(page.locator(".attachments h3")).toHaveText("4 attachments");
+  await expect(
+    page.getByRole("link", { name: "Download broken.png", exact: true }),
+  ).toHaveCount(0);
+  // Presentation never changes the archive or its download endpoints.
+  const saved: MailDetail = await (await request.get(`/api/mail/${id}`)).json();
+  expect(saved.attachments).toEqual(detail.attachments);
 });

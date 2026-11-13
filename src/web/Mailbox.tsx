@@ -60,58 +60,12 @@ function MailReader({
         </p>
         <a href={`/api/original/${item.id}`}>Download original email (.eml)</a>
       </details>
-      <EmailContent key={item.id} id={item.id} text={item.body_text} />
-      {item.attachments.length > 0 && (
-        <section className="attachments">
-          <h3>
-            <Icon name="clip" size={19} />
-            {item.attachments.length} attachment
-            {item.attachments.length === 1 ? "" : "s"}
-          </h3>
-          {item.attachments.map((a) => (
-            <div className="attachment" key={a.id}>
-              <span className="file-icon">
-                <Icon name="book" />
-              </span>
-              <div>
-                <strong>{a.filename}</strong>
-                <span>
-                  {a.size < 1024
-                    ? `${a.size} B`
-                    : `${Math.ceil(a.size / 1024)} KB`}{" "}
-                  · {a.content_type}
-                </span>
-              </div>
-              <div className="file-actions">
-                {[
-                  "application/pdf",
-                  "image/png",
-                  "image/jpeg",
-                  "image/gif",
-                  "image/webp",
-                  "text/plain",
-                ].includes(a.content_type) && (
-                  <a
-                    href={`/api/attachments/${a.id}?preview=1`}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    View
-                    <span className="sr-only"> {a.filename} in a new tab</span>
-                  </a>
-                )}
-                <a
-                  className="icon-button"
-                  href={`/api/attachments/${a.id}`}
-                  aria-label={`Download ${a.filename}`}
-                >
-                  <Icon name="download" size={20} />
-                </a>
-              </div>
-            </div>
-          ))}
-        </section>
-      )}
+      <EmailContent
+        key={item.id}
+        id={item.id}
+        text={item.body_text}
+        attachments={item.attachments}
+      />
     </article>
   );
 }
@@ -215,9 +169,16 @@ export function Mailbox({
                           ))}
                         </div>
                         {item.attachment_count > 0 && (
-                          <span className="attachment-count">
+                          <span
+                            className="attachment-count"
+                            title="All files, including inline images"
+                          >
                             <Icon name="clip" size={14} />
                             {item.attachment_count}
+                            <span className="sr-only">
+                              {" "}
+                              files, including inline images
+                            </span>
                           </span>
                         )}
                       </div>

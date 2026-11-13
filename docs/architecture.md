@@ -24,6 +24,8 @@ R2 使用内容寻址 key，在 D1 事务前完成写入。失败会抛出以便
 
 ## 原始邮件显示边界
 
-`sanitize-html` 只允许排版标签和明确属性，去除脚本、事件、表单、iframe、SVG、导航 meta/base；链接固定新窗口并设置 noopener/noreferrer。为保留学校邮件样式，明确允许 `<style>`（`allowVulnerableTags` 的限定例外）：HTML 只由专用端点输出，绝不插入应用 DOM；端点 CSP 和 iframe sandbox 均禁止脚本、表单及顶层导航，CSP 在单独打开端点时同样生效。allow-same-origin 只供父页面测量内容高度，禁止同时添加 allow-scripts。
+`sanitize-html` 只允许排版标签和明确属性，去除脚本、事件、表单、iframe、SVG、导航 meta/base；链接固定新窗口并设置 noopener/noreferrer。为保留学校邮件样式，明确允许 `<style>`（`allowVulnerableTags` 的限定例外）：HTML 只由专用端点输出，绝不插入应用 DOM；端点 CSP 和 iframe sandbox 均禁止脚本、表单及顶层导航，CSP 在单独打开端点时同样生效。allow-same-origin 供父页面测量内容高度及确认内嵌图片的显示状态，禁止同时添加 allow-scripts。
 
 外部图片默认从 img 属性中移除，srcset 不保留；CSS 网络请求同时由 CSP 拦截。用户点击 Load external images 后仅开放图片 http(s) 来源，外部样式表、字体、脚本和连接仍禁止。CID 仅映射同封邮件已归档的 PNG/JPEG/GIF/WebP，data 图片也仅允许这些类型。图片和表格宽度适配容器；超长邮件高度封顶后在框内滚动。格式加载失败回退纯文本并允许重试。真实邮件和截图只可保存在忽略的本地目录。
+
+附件去重展示由阅读组件按当前 iframe 中已加载、可见图片的归档预览地址判断，只过滤同封邮件匹配的附件 ID，不依赖文件扩展名或 MIME inline 标记。纯文本和失败回退恢复完整列表；D1 元数据、R2 原件、文件下载与搜索保持完整，无需迁移历史邮件。
