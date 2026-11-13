@@ -2,7 +2,7 @@ export const pixel =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jS1kAAAAASUVORK5CYII=";
 export function htmlMail(key: string) {
   return [
-    "From: Teacher <teacher@school.example.com>",
+    "From: classroom-newsletters@school.example.com",
     "To: parents-sunshine@school.example.com",
     `Subject: Colorful newsletter ${key}`,
     `Message-ID: <${key}@school.example.com>`,

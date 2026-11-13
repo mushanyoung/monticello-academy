@@ -7,12 +7,16 @@
   --color-orange: #ef9258;
   --font-sans: "DM Sans", sans-serif;
   --font-heading: "Fraunces", Georgia, serif;
+  --text-label: 0.75rem;
+  --text-small: 0.875rem;
+  --text-body: 1rem;
+  --text-subheading: 1.125rem;
 }
 :root {
   color: #30233e;
   background: #fcf8f0;
   font-family: "DM Sans", sans-serif;
-  font-size: 14px;
+  font-size: 100%;
   font-synthesis: none;
 }
 * {
@@ -20,6 +24,7 @@
 }
 body {
   margin: 0;
+  line-height: 1.6;
 }
 button,
 input,
@@ -92,7 +97,7 @@ svg {
   align-items: center;
   gap: 8px;
   font-family: "Fraunces", Georgia, serif;
-  font-size: 26px;
+  font-size: 1.625rem;
   letter-spacing: -1px;
 }
 .brand-mark {
@@ -102,7 +107,7 @@ svg {
 .brand-sub {
   display: block;
   font-family: "DM Sans", sans-serif;
-  font-size: 10px;
+  font-size: var(--text-small);
   letter-spacing: 1px;
   margin-top: 3px;
 }
@@ -111,7 +116,7 @@ svg {
   align-items: center;
   gap: 7px;
   margin: 25px 6px 38px;
-  font-size: 9px;
+  font-size: var(--text-label);
   letter-spacing: 1.8px;
   font-weight: 700;
   color: #766c78;
@@ -144,7 +149,7 @@ svg {
   min-height: 48px;
   padding: 0 14px;
   border: 1px solid transparent;
-  font-size: 13px;
+  font-size: var(--text-body);
   color: #6a6171;
   border-radius: 7px 10px 8px 5px;
 }
@@ -163,21 +168,21 @@ svg {
   background: #eee9e1;
   border-radius: 5px;
   padding: 2px 6px;
-  font-size: 10px;
+  font-size: var(--text-small);
 }
 .sidebar-rooms {
   margin-top: 45px;
   padding: 0 12px;
 }
 .eyebrow {
-  font-size: 10px;
+  font-size: var(--text-small);
   font-weight: 700;
   letter-spacing: 1.8px;
   line-height: 1.6;
   color: #776980;
 }
 .sidebar-rooms > .eyebrow {
-  font-size: 9px;
+  font-size: var(--text-label);
   letter-spacing: 1.3px;
   display: block;
   margin-bottom: 17px;
@@ -187,7 +192,7 @@ svg {
   align-items: center;
   min-height: 42px;
   gap: 11px;
-  font-size: 12px;
+  font-size: var(--text-body);
   color: #706774;
 }
 .sidebar-rooms :where(a) svg {
@@ -202,7 +207,7 @@ svg {
   padding: 45px 13px 4px;
 }
 .sidebar-flower {
-  font-size: 44px;
+  font-size: 2.75rem;
   line-height: 1;
   color: #ad8fb8;
   transform: rotate(12deg);
@@ -211,17 +216,17 @@ svg {
 }
 .sidebar-bottom p {
   font-family: "Fraunces", Georgia, serif;
-  font-size: 17px;
+  font-size: 1.0625rem;
   line-height: 1.5;
 }
 .handwritten {
   font-family: "Caveat", cursive;
-  font-size: 23px;
+  font-size: 1.4375rem;
   color: #806490;
   font-weight: 500;
 }
 .sidebar-bottom .handwritten {
-  font-size: 19px;
+  font-size: 1.1875rem;
   display: block;
   margin-top: 10px;
 }
@@ -236,7 +241,7 @@ svg {
   gap: 10px;
   border-bottom: 1px solid #e8e1d6;
   padding: 0 46px;
-  font-size: 11px;
+  font-size: var(--text-small);
   color: #8b818e;
 }
 .topbar strong {
@@ -275,15 +280,15 @@ main {
   display: flex;
   gap: 9px;
   align-items: center;
-  font-size: 9px;
+  font-size: var(--text-label);
   color: #82648f;
 }
 .tiny-star {
-  font-size: 18px;
+  font-size: 1.125rem;
   color: #b77447;
 }
 h1 {
-  font-size: clamp(42px, 4.1vw, 62px);
+  font-size: clamp(2.625rem, 4.1vw, 3.875rem);
   line-height: 1.08;
   letter-spacing: -2px;
   margin: 13px 0 19px;
@@ -293,7 +298,7 @@ h1 span {
 }
 .welcome p,
 .page-heading > p {
-  font-size: 13px;
+  font-size: var(--text-body);
   color: #807584;
   line-height: 1.8;
 }
@@ -302,11 +307,11 @@ h1 span {
   gap: 16px;
   margin-top: 19px;
   transform: rotate(-3deg);
-  font-size: 22px;
+  font-size: 1.375rem;
 }
 .welcome-note span {
   font-family: "DM Sans", sans-serif;
-  font-size: 30px;
+  font-size: 1.875rem;
   transform: rotate(13deg);
 }
 .garden {
@@ -317,24 +322,25 @@ h1 span {
 }
 .section-heading {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
 }
 h2 {
-  font-size: 29px;
+  font-size: 1.8125rem;
   letter-spacing: -0.6px;
   line-height: 1.25;
 }
 .section-heading .eyebrow {
-  font-size: 8px;
+  font-size: var(--text-label);
   letter-spacing: 1.7px;
   margin-bottom: 6px;
   display: block;
 }
 .sparkle {
   font-family: "DM Sans", sans-serif;
-  font-size: 29px;
+  font-size: 1.8125rem;
   color: #b08ec0;
   margin-left: 5px;
 }
@@ -349,7 +355,7 @@ h2 {
 .day-switch a {
   min-height: 36px;
   padding: 9px 19px;
-  font-size: 12px;
+  font-size: var(--text-body);
   color: #7b678a;
   border-radius: 6px;
 }
@@ -362,7 +368,7 @@ h2 {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-size: 11px;
+  font-size: var(--text-small);
   color: #817587;
   margin-top: 13px;
 }
@@ -387,7 +393,7 @@ h2 {
   border-radius: 24px;
   padding: 8px 13px;
   min-height: 36px;
-  font-size: 11px;
+  font-size: var(--text-small);
   color: #7b707f;
   background: #fcf9f3;
 }
@@ -441,13 +447,13 @@ h2 {
   height: 45px;
 }
 .room-heading .eyebrow {
-  font-size: 8px;
+  font-size: var(--text-label);
   letter-spacing: 1px;
   text-transform: uppercase;
   color: #96818a;
 }
 .day-card h3 {
-  font-size: 19px;
+  font-size: 1.1875rem;
   letter-spacing: -0.5px;
 }
 .day-content {
@@ -455,26 +461,26 @@ h2 {
   flex: 1;
 }
 .small-label {
-  font-size: 8px;
+  font-size: var(--text-label);
   font-weight: 700;
   letter-spacing: 1.2px;
   color: #8a748d;
   line-height: 1.6;
 }
 .day-card h4 {
-  font-size: 23px;
+  font-size: 1.4375rem;
   line-height: 1.25;
   margin: 10px 0 14px;
   letter-spacing: -0.4px;
 }
 .day-content p {
-  font-size: 12px;
+  font-size: var(--text-body);
   line-height: 1.7;
   color: #807184;
 }
 .day-content .handwritten {
   display: block;
-  font-size: 18px;
+  font-size: 1.125rem;
   margin-top: 20px;
 }
 .card-link {
@@ -484,7 +490,7 @@ h2 {
   gap: 8px;
   border-top: 1px dashed #a58aa551;
   min-height: 56px;
-  font-size: 11px;
+  font-size: var(--text-small);
   font-weight: 600;
   color: #71557d;
 }
@@ -503,7 +509,7 @@ h2 {
 .activity strong {
   display: block;
   color: #574260;
-  font-size: 11px;
+  font-size: var(--text-small);
 }
 .reminders {
   margin-top: 18px;
@@ -540,12 +546,12 @@ h2 {
   transform: rotate(-18deg);
 }
 .grownup-note h3 {
-  font-size: 18px;
+  font-size: 1.125rem;
   margin-bottom: 6px;
 }
 .grownup-note p {
   color: #8b7d86;
-  font-size: 11px;
+  font-size: var(--text-small);
   line-height: 1.8;
   max-width: 590px;
 }
@@ -556,7 +562,7 @@ h2 {
 }
 .grownup-note > .handwritten {
   flex-shrink: 0;
-  font-size: 22px;
+  font-size: 1.375rem;
   margin-left: auto;
   transform: rotate(-5deg);
   line-height: 1.15;
@@ -567,7 +573,7 @@ h2 {
   align-items: center;
   gap: 9px;
   color: #76518e;
-  font-size: 12px;
+  font-size: var(--text-body);
   font-weight: 500;
   min-height: 44px;
 }
@@ -575,7 +581,7 @@ h2 {
   text-decoration: underline;
 }
 .recent-section h2 {
-  font-size: 27px;
+  font-size: 1.6875rem;
 }
 .empty-state {
   border: 1px solid #e8dfd3;
@@ -598,11 +604,11 @@ h2 {
   margin-bottom: 15px;
 }
 .empty-state h3 {
-  font-size: 25px;
+  font-size: 1.5625rem;
   margin-bottom: 10px;
 }
 .empty-state p {
-  font-size: 13px;
+  font-size: var(--text-body);
   line-height: 1.8;
   color: #918393;
 }
@@ -625,12 +631,12 @@ h2 {
   min-width: 0;
 }
 .recent-item h3 {
-  font-size: 14px;
+  font-size: var(--text-body);
   margin-bottom: 5px;
   overflow-wrap: anywhere;
 }
 .recent-item p {
-  font-size: 11px;
+  font-size: var(--text-small);
   color: #8b7e90;
 }
 .recent-item :where(p) span {
@@ -653,7 +659,7 @@ h2 {
   margin-top: 10px;
 }
 .badge {
-  font-size: 9px;
+  font-size: var(--text-label);
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -687,11 +693,11 @@ h2 {
   justify-content: space-between;
   gap: 15px;
   color: #a191a1;
-  font-size: 9px;
+  font-size: var(--text-label);
 }
 .footer > span:first-child {
   letter-spacing: 1.2px;
-  font-size: 8px;
+  font-size: var(--text-label);
 }
 .footer > :where(span) > span {
   color: #b5829b;
@@ -746,7 +752,7 @@ h2 {
   border-radius: 6px 8px 5px 7px;
   min-height: 44px;
   padding: 10px 17px;
-  font-size: 12px;
+  font-size: var(--text-body);
   white-space: nowrap;
   box-shadow: 1px 2px 0 #d4c0df;
 }
@@ -758,7 +764,7 @@ h2 {
   padding: 43px 0 12px;
 }
 .page-heading h1 {
-  font-size: clamp(40px, 3.7vw, 55px);
+  font-size: clamp(2.5rem, 3.7vw, 3.4375rem);
 }
 .heading-doodle {
   position: absolute;
@@ -791,7 +797,7 @@ h2 {
   width: 100%;
   min-width: 0;
   color: #513f61;
-  font-size: 12px;
+  font-size: var(--text-body);
   outline-offset: 0;
 }
 .search-field input::placeholder {
@@ -804,7 +810,7 @@ h2 {
   border-radius: 6px;
   background: #f9f4ee;
   color: #7b6486;
-  font-size: 12px;
+  font-size: var(--text-body);
 }
 .mail-layout {
   display: grid;
@@ -816,7 +822,7 @@ h2 {
 .results-heading {
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: var(--text-small);
   color: #948298;
   padding: 4px 0 16px;
 }
@@ -848,23 +854,24 @@ h2 {
 }
 .mail-item-top {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 10px;
   color: #947d9a;
-  font-size: 10px;
+  font-size: var(--text-small);
   margin-bottom: 9px;
 }
 .mail-item-top time {
   white-space: nowrap;
 }
 .mail-item h3 {
-  font-size: 15px;
+  font-size: var(--text-subheading);
   margin-bottom: 8px;
   line-height: 1.5;
   overflow-wrap: anywhere;
 }
 .mail-item > p {
-  font-size: 12px;
+  font-size: var(--text-body);
   color: #928194;
   line-height: 1.6;
   overflow: hidden;
@@ -882,7 +889,7 @@ h2 {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 10px;
+  font-size: var(--text-small);
   color: #98819f;
 }
 .mail-reader {
@@ -895,10 +902,10 @@ h2 {
 }
 .back-link {
   margin: -8px 0 15px;
-  font-size: 11px;
+  font-size: var(--text-small);
 }
 .mail-reader h2 {
-  font-size: 28px;
+  font-size: 1.75rem;
   margin: 18px 0 25px;
   line-height: 1.35;
   overflow-wrap: anywhere;
@@ -907,9 +914,14 @@ h2 {
   display: flex;
   gap: 11px;
   align-items: center;
+  overflow-wrap: anywhere;
+}
+.sender-line > div {
+  min-width: 0;
 }
 .sender-avatar {
   display: inline-flex;
+  flex-shrink: 0;
   justify-content: center;
   align-items: center;
   width: 37px;
@@ -919,23 +931,23 @@ h2 {
   color: #956544;
 }
 .sender-line strong {
-  font-size: 12px;
+  font-size: var(--text-body);
 }
 .sender-line :where(div) > span {
   display: block;
-  font-size: 10px;
+  font-size: var(--text-small);
   margin-top: 4px;
   color: #947e9a;
   overflow-wrap: anywhere;
 }
 .mail-date {
   color: #9b859f;
-  font-size: 10px;
+  font-size: var(--text-small);
   margin-top: 14px;
   line-height: 1.8;
 }
 .mail-metadata {
-  font-size: 11px;
+  font-size: var(--text-small);
   color: #9b859f;
   margin: 10px 0 25px;
   overflow-wrap: anywhere;
@@ -956,7 +968,7 @@ h2 {
   padding-top: 25px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  font-size: 13px;
+  font-size: var(--text-body);
   color: #635267;
   line-height: 1.9;
 }
@@ -972,7 +984,7 @@ h2 {
   border: 1px solid #dcccdb;
   border-radius: 6px;
   background: #fffdf8;
-  font-size: 14px;
+  font-size: var(--text-body);
 }
 .email-view-options button[aria-pressed="true"] {
   background: #eee7f5;
@@ -994,7 +1006,7 @@ h2 {
   gap: 4px 12px;
   padding: 8px 12px;
   background: #fce8d8;
-  font-size: 14px;
+  font-size: var(--text-body);
   margin-bottom: 12px;
   border-radius: 6px;
 }
@@ -1005,7 +1017,7 @@ h2 {
   text-decoration: underline;
 }
 .email-view-error {
-  font-size: 14px;
+  font-size: var(--text-body);
   line-height: 1.6;
   margin-bottom: 16px;
 }
@@ -1018,7 +1030,7 @@ h2 {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 12px;
+  font-size: var(--text-body);
   margin-bottom: 15px;
 }
 .attachment {
@@ -1039,13 +1051,13 @@ h2 {
   min-width: 0;
 }
 .attachment strong {
-  font-size: 11px;
+  font-size: var(--text-small);
   display: block;
   overflow-wrap: anywhere;
 }
 .attachment span:where(:not(.file-icon)) {
   display: block;
-  font-size: 9px;
+  font-size: var(--text-label);
   color: #9c87a1;
   margin-top: 4px;
 }
@@ -1055,7 +1067,7 @@ h2 {
   gap: 5px;
 }
 .file-actions > a {
-  font-size: 11px;
+  font-size: var(--text-small);
   color: #80608f;
   min-height: 44px;
   display: inline-flex;
@@ -1073,7 +1085,7 @@ h2 {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 11px;
+  font-size: var(--text-small);
   margin-top: 20px;
   color: #82608f;
 }
@@ -1093,7 +1105,7 @@ h2 {
   margin: 12px 0 25px;
 }
 .month-form label {
-  font-size: 12px;
+  font-size: var(--text-body);
   color: #957d9d;
 }
 .month-form input {
@@ -1103,7 +1115,7 @@ h2 {
   padding: 0 12px;
   background: #fffaf5;
   color: #71577e;
-  font-size: 12px;
+  font-size: var(--text-body);
 }
 .plan-list {
   display: grid;
@@ -1124,19 +1136,19 @@ h2 {
   min-width: 0;
 }
 .plan h2 {
-  font-size: 28px;
+  font-size: 1.75rem;
   margin: 15px 0 10px;
   overflow-wrap: anywhere;
 }
 .plan-month {
   color: #997c9e;
-  font-size: 12px;
+  font-size: var(--text-body);
 }
 .plan-overview {
   color: #816a87;
   margin: 20px 0;
   line-height: 1.8;
-  font-size: 13px;
+  font-size: var(--text-body);
 }
 .objectives {
   background: #f0e8f5;
@@ -1147,7 +1159,7 @@ h2 {
 .objectives ul {
   padding-left: 17px;
   margin: 10px 0 0;
-  font-size: 12px;
+  font-size: var(--text-body);
   line-height: 1.9;
   color: #7b6088;
 }
@@ -1169,11 +1181,11 @@ h2 {
 }
 .plan-day :where(summary > span:nth-child(2)) > strong {
   display: block;
-  font-size: 14px;
+  font-size: var(--text-body);
 }
 .plan-day :where(summary > span:nth-child(2)) > span {
   display: block;
-  font-size: 10px;
+  font-size: var(--text-small);
   color: #a18aa5;
   margin-top: 5px;
 }
@@ -1183,11 +1195,11 @@ h2 {
   align-items: center;
   width: 47px;
   color: #9e7aaa;
-  font-size: 10px;
+  font-size: var(--text-small);
 }
 .day-date strong {
   font-family: "Fraunces", Georgia, serif;
-  font-size: 29px;
+  font-size: 1.8125rem;
   line-height: 1.2;
 }
 .plan-day[open] summary > svg {
@@ -1195,7 +1207,7 @@ h2 {
 }
 .plan-day-body {
   padding: 0 10px 20px 65px;
-  font-size: 12px;
+  font-size: var(--text-body);
   line-height: 1.8;
   color: #816b8a;
 }
@@ -1217,7 +1229,7 @@ h2 {
   padding-top: 10px;
 }
 .plan-source > span {
-  font-size: 10px;
+  font-size: var(--text-small);
   color: #a28ba8;
 }
 @media (min-width: 1600px) {
@@ -1268,10 +1280,10 @@ h2 {
     height: 37px;
   }
   .day-card h3 {
-    font-size: 17px;
+    font-size: 1.0625rem;
   }
   .day-card h4 {
-    font-size: 21px;
+    font-size: 1.3125rem;
   }
   .grownup-note > .handwritten {
     display: none;
@@ -1294,7 +1306,7 @@ h2 {
     padding-top: 15px;
   }
   .day-card h4 {
-    font-size: 24px;
+    font-size: 1.5rem;
   }
   .room-heading svg {
     width: 48px;
@@ -1304,10 +1316,10 @@ h2 {
     gap: 10px;
   }
   .day-card h3 {
-    font-size: 22px;
+    font-size: 1.375rem;
   }
   .welcome h1 {
-    font-size: 45px;
+    font-size: 2.8125rem;
   }
   .garden {
     width: 31%;
@@ -1322,13 +1334,10 @@ h2 {
     width: 50px;
   }
   .page-heading h1 {
-    font-size: 40px;
+    font-size: 2.5rem;
   }
 }
 @media (max-width: 700px) {
-  :root {
-    font-size: 14px;
-  }
   .sidebar {
     position: relative;
     width: 100%;
@@ -1340,7 +1349,7 @@ h2 {
     align-items: center;
   }
   .brand {
-    font-size: 25px;
+    font-size: 1.5625rem;
   }
   .brand-mark {
     width: 43px;
@@ -1350,12 +1359,12 @@ h2 {
     height: 43px;
   }
   .brand-sub {
-    font-size: 9px;
+    font-size: var(--text-label);
     letter-spacing: 0.6px;
   }
   .campus-label {
     margin: 0;
-    font-size: 8px;
+    font-size: var(--text-label);
     letter-spacing: 0.8px;
   }
   .main-nav,
@@ -1377,14 +1386,14 @@ h2 {
     align-items: flex-start;
   }
   .welcome-label {
-    font-size: 8px;
+    font-size: var(--text-label);
     letter-spacing: 1.2px;
   }
   .tiny-star {
-    font-size: 16px;
+    font-size: 1rem;
   }
   .welcome h1 {
-    font-size: 37px;
+    font-size: 2.3125rem;
     letter-spacing: -1.6px;
     margin: 12px 0 17px;
   }
@@ -1404,7 +1413,7 @@ h2 {
     opacity: 0.9;
   }
   .welcome-note {
-    font-size: 21px;
+    font-size: 1.3125rem;
     margin-top: 17px;
   }
   .welcome-note span {
@@ -1418,10 +1427,10 @@ h2 {
     gap: 10px;
   }
   h2 {
-    font-size: 26px;
+    font-size: 1.625rem;
   }
   .section-heading .eyebrow {
-    font-size: 7px;
+    font-size: var(--text-label);
     letter-spacing: 1.4px;
   }
   .sparkle {
@@ -1433,17 +1442,17 @@ h2 {
   }
   .day-switch a {
     min-height: 40px;
-    font-size: 11px;
+    font-size: var(--text-small);
     padding: 12px 12px;
   }
   .date-line {
-    font-size: 10px;
+    font-size: var(--text-small);
     flex-wrap: wrap;
     gap: 6px;
     margin-top: 13px;
   }
   .time-zone {
-    font-size: 9px;
+    font-size: var(--text-label);
   }
   .class-filters {
     margin: 18px -3px 17px;
@@ -1451,7 +1460,7 @@ h2 {
   }
   .class-filters a {
     min-height: 44px;
-    font-size: 11px;
+    font-size: var(--text-small);
     padding: 11px 14px;
   }
   .day-grid {
@@ -1471,32 +1480,32 @@ h2 {
     height: 48px;
   }
   .day-card h3 {
-    font-size: 22px;
+    font-size: 1.375rem;
   }
   .room-heading .eyebrow {
-    font-size: 8px;
+    font-size: var(--text-label);
   }
   .day-content {
     padding: 20px 0 20px;
   }
   .day-card h4 {
-    font-size: 26px;
+    font-size: 1.625rem;
     max-width: 270px;
     margin-top: 10px;
   }
   .day-content p {
-    font-size: 13px;
+    font-size: var(--text-body);
   }
   .day-content .handwritten {
     margin-top: 15px;
-    font-size: 20px;
+    font-size: 1.25rem;
   }
   .card-link {
-    font-size: 12px;
+    font-size: var(--text-body);
     min-height: 56px;
   }
   .small-label {
-    font-size: 8px;
+    font-size: var(--text-label);
   }
   .grownup-note {
     margin: 26px 0 31px;
@@ -1505,55 +1514,55 @@ h2 {
     align-items: flex-start;
   }
   .grownup-note h3 {
-    font-size: 19px;
+    font-size: 1.1875rem;
   }
   .grownup-note p {
-    font-size: 11px;
+    font-size: var(--text-small);
   }
   .note-doodle {
     margin-top: 3px;
   }
   .recent-section h2 {
-    font-size: 23px;
+    font-size: 1.4375rem;
   }
   .text-link {
-    font-size: 11px;
+    font-size: var(--text-small);
   }
   .empty-state {
     padding: 31px 18px;
   }
   .empty-state h3 {
-    font-size: 24px;
+    font-size: 1.5rem;
   }
   .empty-state p {
-    font-size: 12px;
+    font-size: var(--text-body);
   }
   .recent-item {
     gap: 12px;
     padding: 19px 0;
   }
   .recent-item h3 {
-    font-size: 13px;
+    font-size: var(--text-body);
   }
   .recent-item p {
-    font-size: 10px;
+    font-size: var(--text-small);
   }
   .mail-symbol {
     padding: 10px;
   }
   :where(.recent-item) .badge {
-    font-size: 8px;
+    font-size: var(--text-label);
   }
   .footer {
     margin: 0 21px;
     padding: 20px 0 100px;
     flex-direction: column;
     align-items: center;
-    font-size: 9px;
+    font-size: var(--text-label);
     gap: 8px;
   }
   .footer > span:first-child {
-    font-size: 7px;
+    font-size: var(--text-label);
   }
   .mobile-nav {
     position: fixed;
@@ -1575,7 +1584,7 @@ h2 {
     justify-content: center;
     gap: 4px;
     min-height: 49px;
-    font-size: 10px;
+    font-size: var(--text-small);
     color: #a28aab;
   }
   .mobile-nav a[aria-current] {
@@ -1591,10 +1600,10 @@ h2 {
     padding: 32px 0 5px;
   }
   .page-heading h1 {
-    font-size: 42px;
+    font-size: 2.625rem;
   }
   .page-heading > p {
-    font-size: 12px;
+    font-size: var(--text-body);
     max-width: 290px;
   }
   .heading-doodle {
@@ -1616,7 +1625,7 @@ h2 {
   }
   .search-field input {
     min-height: 46px;
-    font-size: 12px;
+    font-size: var(--text-body);
   }
   .sort-field {
     flex: 1;
@@ -1635,42 +1644,42 @@ h2 {
     padding: 20px 18px;
   }
   .mail-item h3 {
-    font-size: 15px;
+    font-size: var(--text-subheading);
   }
   .mail-item-top {
-    font-size: 10px;
+    font-size: var(--text-small);
   }
   .badge {
-    font-size: 9px;
+    font-size: var(--text-label);
   }
   .mail-reader {
     padding: 22px 19px;
     margin-top: 2px;
   }
   .mail-reader h2 {
-    font-size: 27px;
+    font-size: 1.6875rem;
   }
   .mail-body {
-    font-size: 13px;
+    font-size: var(--text-body);
   }
   .attachment {
     padding: 11px 8px;
     gap: 8px;
   }
   .attachment strong {
-    font-size: 11px;
+    font-size: var(--text-small);
   }
   .file-icon svg {
     width: 19px;
   }
   .attachment span:where(:not(.file-icon)) {
-    font-size: 8px;
+    font-size: var(--text-label);
   }
   .file-actions {
     gap: 2px;
   }
   .file-actions > a {
-    font-size: 10px;
+    font-size: var(--text-small);
   }
   .icon-button {
     width: 32px;
@@ -1686,7 +1695,7 @@ h2 {
     padding: 23px 19px;
   }
   .plan h2 {
-    font-size: 26px;
+    font-size: 1.625rem;
   }
   .plan-heading > svg {
     width: 50px;
@@ -1696,14 +1705,14 @@ h2 {
     gap: 8px;
   }
   .plan-month {
-    font-size: 11px;
+    font-size: var(--text-small);
     line-height: 1.8;
   }
   .plan-day summary {
     gap: 12px;
   }
   .plan-day :where(summary > span:nth-child(2)) > strong {
-    font-size: 13px;
+    font-size: var(--text-body);
     line-height: 1.5;
   }
   .plan-day-body {
@@ -1738,7 +1747,7 @@ h2 {
     right: 0;
   }
   .welcome h1 {
-    font-size: 34px;
+    font-size: 2.125rem;
   }
   .welcome p {
     max-width: 210px;
@@ -1748,7 +1757,7 @@ h2 {
     padding-right: 9px;
   }
   h2 {
-    font-size: 23px;
+    font-size: 1.4375rem;
   }
   .time-zone {
     display: none;
