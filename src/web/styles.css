@@ -1099,16 +1099,24 @@ h2 {
   margin-bottom: 25px;
 }
 .month-form {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: 110px 110px max-content;
+  align-items: end;
   gap: 11px;
   margin: 12px 0 25px;
+}
+.month-field {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
 }
 .month-form label {
   font-size: var(--text-body);
   color: #957d9d;
 }
-.month-form input {
+.month-form :is(input, select) {
+  width: 100%;
+  min-width: 0;
   height: 44px;
   border: 1px solid #d6c6de;
   border-radius: 6px;
@@ -1687,11 +1695,8 @@ h2 {
     width: 32px;
   }
   .month-form {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) max-content;
     gap: 9px;
-  }
-  .month-form input {
-    min-width: 0;
-    flex: 1;
   }
   .plan {
     padding: 23px 19px;

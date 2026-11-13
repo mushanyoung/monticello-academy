@@ -39,17 +39,51 @@ export function Plans({
       </header>
       <div className="plans-toolbar">
         <ClassFilters view="plans" selected={selected} month={selectedMonth} />
-        <form action="/" method="get" className="month-form">
-          <input type="hidden" name="view" value="plans" />
-          <input type="hidden" name="class" value={selected} />
-          <label htmlFor="month">{t("Month")}</label>
-          <input
-            id="month"
-            name="month"
-            type="month"
-            defaultValue={selectedMonth}
-            required
-          />
+        <form
+          className="month-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const data = new FormData(event.currentTarget);
+            const year = String(Number(data.get("year"))).padStart(4, "0");
+            window.location.assign(
+              href({
+                view: "plans",
+                class: selected,
+                month: `${year}-${String(data.get("month"))}`,
+              }),
+            );
+          }}
+        >
+          <div className="month-field">
+            <label htmlFor="year">{t("Year")}</label>
+            <input
+              id="year"
+              name="year"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              max={9999}
+              step={1}
+              defaultValue={selectedMonth.slice(0, 4)}
+              required
+            />
+          </div>
+          <div className="month-field">
+            <label htmlFor="month">{t("Month")}</label>
+            <select
+              id="month"
+              name="month"
+              defaultValue={selectedMonth.slice(5, 7)}
+            >
+              {Array.from({ length: 12 }, (_, index) =>
+                String(index + 1).padStart(2, "0"),
+              ).map((value) => (
+                <option key={value} value={value}>
+                  {displayDate(`2000-${value}-01`, { month: "short" })}
+                </option>
+              ))}
+            </select>
+          </div>
           <button className="button" type="submit">
             {t("Go")} <Icon name="arrow" size={16} />
           </button>

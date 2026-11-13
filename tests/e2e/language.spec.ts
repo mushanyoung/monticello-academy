@@ -36,7 +36,14 @@ test("switches every view to Chinese, remembers the client choice and keeps a us
       .boundingBox();
     expect(button?.x).toBeGreaterThan((page.viewportSize()?.width || 0) / 2);
   }
+  await page.getByLabel("年份", { exact: true }).fill("2040");
+  await page.getByLabel("月份", { exact: true }).selectOption("09");
+  await page.getByRole("button", { name: "查看", exact: true }).click();
+  await expect(page).toHaveURL(/month=2040-09/);
+  await expect(page.locator("#month option:checked")).toHaveText("9月");
   await page.getByRole("button", { name: "English", exact: true }).click();
+  await expect(page.locator("#month option:checked")).toHaveText("Sep");
+  await expect(page.getByLabel("Year", { exact: true })).toHaveValue("2040");
   await expect(
     page.getByRole("heading", { name: "A month of little possibilities." }),
   ).toBeVisible();

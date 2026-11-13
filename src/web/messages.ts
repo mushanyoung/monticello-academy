@@ -78,6 +78,7 @@ export const messages = {
   "Themes, activities, and things to remember, one month at a time.":
     "把每个月的主题、活动和提醒，轻轻翻开。",
   Month: "月份",
+  Year: "年份",
   Go: "查看",
   "Partial month · These dates appear in an adjacent month's PDF.":
     "部分月份 · 这些日期来自相邻月份的课程 PDF。",
