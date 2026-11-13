@@ -70,8 +70,7 @@ h1,
 h2,
 .day-card h3,
 .day-card h4,
-.empty-state h3,
-.grownup-note h3 {
+.empty-state h3 {
   font-family: "Fraunces", Georgia, serif;
   font-weight: 500;
 }
@@ -94,28 +93,27 @@ svg {
 }
 .brand {
   display: flex;
+  flex-direction: column;
+  align-self: center;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-family: "Fraunces", Georgia, serif;
-  font-size: 1.625rem;
+  font-size: 1.875rem;
   letter-spacing: -1px;
+  line-height: 1.1;
 }
-.brand-mark {
+.brand-classrooms {
   display: flex;
-  width: 50px;
-}
-.brand-sub {
-  display: block;
-  font-family: "DM Sans", sans-serif;
-  font-size: var(--text-small);
-  letter-spacing: 1px;
-  margin-top: 3px;
+  align-items: center;
+  gap: 12px;
+  line-height: 0;
 }
 .campus-label {
   display: flex;
   align-items: center;
   gap: 7px;
-  margin: 25px 6px 38px;
+  justify-content: center;
+  margin: 21px 6px 30px;
   font-size: var(--text-label);
   letter-spacing: 1.8px;
   font-weight: 700;
@@ -170,37 +168,12 @@ svg {
   padding: 2px 6px;
   font-size: var(--text-small);
 }
-.sidebar-rooms {
-  margin-top: 45px;
-  padding: 0 12px;
-}
 .eyebrow {
   font-size: var(--text-small);
   font-weight: 700;
   letter-spacing: 1.8px;
   line-height: 1.6;
   color: #776980;
-}
-.sidebar-rooms > .eyebrow {
-  font-size: var(--text-label);
-  letter-spacing: 1.3px;
-  display: block;
-  margin-bottom: 17px;
-}
-.sidebar-rooms a {
-  display: flex;
-  align-items: center;
-  min-height: 42px;
-  gap: 11px;
-  font-size: var(--text-body);
-  color: #706774;
-}
-.sidebar-rooms :where(a) svg {
-  margin-left: auto;
-  color: #a397ab;
-}
-.sidebar-rooms a:hover {
-  color: #5f3f85;
 }
 .sidebar-bottom {
   margin-top: auto;
@@ -265,60 +238,8 @@ svg {
 }
 main {
   max-width: 1450px;
-  padding: 0 46px 40px;
+  padding: 28px 46px 40px;
   margin: auto;
-}
-.welcome {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  position: relative;
-  padding: 43px 0 36px;
-  gap: 10px;
-}
-.welcome-label {
-  display: flex;
-  gap: 9px;
-  align-items: center;
-  font-size: var(--text-label);
-  color: #82648f;
-}
-.tiny-star {
-  font-size: 1.125rem;
-  color: #b77447;
-}
-h1 {
-  font-size: clamp(2.625rem, 4.1vw, 3.875rem);
-  line-height: 1.08;
-  letter-spacing: -2px;
-  margin: 13px 0 19px;
-}
-h1 span {
-  color: #806294;
-}
-.welcome p,
-.page-heading > p {
-  font-size: var(--text-body);
-  color: #807584;
-  line-height: 1.8;
-}
-.welcome-note {
-  display: inline-flex;
-  gap: 16px;
-  margin-top: 19px;
-  transform: rotate(-3deg);
-  font-size: 1.375rem;
-}
-.welcome-note span {
-  font-family: "DM Sans", sans-serif;
-  font-size: 1.875rem;
-  transform: rotate(13deg);
-}
-.garden {
-  width: 33%;
-  max-width: 340px;
-  margin-top: 12px;
-  margin-right: 14px;
 }
 .section-heading {
   display: flex;
@@ -327,16 +248,11 @@ h1 span {
   justify-content: space-between;
   gap: 14px;
 }
+h1,
 h2 {
   font-size: 1.8125rem;
   letter-spacing: -0.6px;
   line-height: 1.25;
-}
-.section-heading .eyebrow {
-  font-size: var(--text-label);
-  letter-spacing: 1.7px;
-  margin-bottom: 6px;
-  display: block;
 }
 .sparkle {
   font-family: "DM Sans", sans-serif;
@@ -531,43 +447,6 @@ h2 {
 .day-note {
   margin-top: 12px;
 }
-.grownup-note {
-  margin: 31px 0 37px;
-  padding: 23px 23px;
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  border: 1px dashed #c9b8b1;
-  border-radius: 8px;
-  background: #f7eee3;
-}
-.note-doodle {
-  color: #9c7c97;
-  transform: rotate(-18deg);
-}
-.grownup-note h3 {
-  font-size: 1.125rem;
-  margin-bottom: 6px;
-}
-.grownup-note p {
-  color: #8b7d86;
-  font-size: var(--text-small);
-  line-height: 1.8;
-  max-width: 590px;
-}
-.grownup-note :where(p) a {
-  color: #77538a;
-  border-bottom: 1px solid #bd9ec6;
-  overflow-wrap: anywhere;
-}
-.grownup-note > .handwritten {
-  flex-shrink: 0;
-  font-size: 1.375rem;
-  margin-left: auto;
-  transform: rotate(-5deg);
-  line-height: 1.15;
-  padding: 0 14px;
-}
 .text-link {
   display: inline-flex;
   align-items: center;
@@ -579,6 +458,9 @@ h2 {
 }
 .text-link:hover {
   text-decoration: underline;
+}
+.recent-section {
+  margin-top: 32px;
 }
 .recent-section h2 {
   font-size: 1.6875rem;
@@ -758,20 +640,6 @@ h2 {
 }
 .button:hover {
   background: #61417b;
-}
-.page-heading {
-  position: relative;
-  padding: 43px 0 12px;
-}
-.page-heading h1 {
-  font-size: clamp(2.5rem, 3.7vw, 3.4375rem);
-}
-.heading-doodle {
-  position: absolute;
-  right: 46px;
-  top: 65px;
-  color: #b58dbb;
-  transform: rotate(9deg);
 }
 .search-form {
   display: flex;
@@ -1247,10 +1115,6 @@ h2 {
     padding-left: 65px;
     padding-right: 65px;
   }
-  .welcome {
-    padding-top: 55px;
-    padding-bottom: 50px;
-  }
   .day-card {
     padding-left: 28px;
     padding-right: 28px;
@@ -1295,9 +1159,6 @@ h2 {
   .day-card h4 {
     font-size: 1.3125rem;
   }
-  .grownup-note > .handwritten {
-    display: none;
-  }
   .mail-layout.has-detail {
     grid-template-columns: 1fr;
   }
@@ -1328,24 +1189,6 @@ h2 {
   .day-card h3 {
     font-size: 1.375rem;
   }
-  .welcome h1 {
-    font-size: 2.8125rem;
-  }
-  .garden {
-    width: 31%;
-  }
-  .desktop-break {
-    display: none;
-  }
-  .heading-doodle {
-    right: 0;
-  }
-  .heading-doodle svg {
-    width: 50px;
-  }
-  .page-heading h1 {
-    font-size: 2.5rem;
-  }
 }
 @media (max-width: 700px) {
   .sidebar {
@@ -1359,18 +1202,12 @@ h2 {
     align-items: center;
   }
   .brand {
-    font-size: 1.5625rem;
+    gap: 3px;
+    font-size: 1.5rem;
   }
-  .brand-mark {
-    width: 43px;
-  }
-  .brand-mark svg {
-    width: 43px;
-    height: 43px;
-  }
-  .brand-sub {
-    font-size: var(--text-label);
-    letter-spacing: 0.6px;
+  .brand-classrooms svg {
+    width: 26px;
+    height: 26px;
   }
   .campus-label {
     margin: 0;
@@ -1378,7 +1215,6 @@ h2 {
     letter-spacing: 0.8px;
   }
   .main-nav,
-  .sidebar-rooms,
   .sidebar-bottom {
     display: none;
   }
@@ -1389,59 +1225,14 @@ h2 {
     display: none;
   }
   main {
-    padding: 0 21px 30px;
-  }
-  .welcome {
-    padding: 24px 0 27px;
-    align-items: flex-start;
-  }
-  .welcome-label {
-    font-size: var(--text-label);
-    letter-spacing: 1.2px;
-  }
-  .tiny-star {
-    font-size: 1rem;
-  }
-  .welcome h1 {
-    font-size: 2.3125rem;
-    letter-spacing: -1.6px;
-    margin: 12px 0 17px;
-  }
-  .welcome p {
-    display: none;
-  }
-  .desktop-break {
-    display: none;
-  }
-  .garden {
-    position: absolute;
-    width: 87px;
-    height: 75px;
-    right: 0;
-    top: 130px;
-    margin: 0;
-    opacity: 0.9;
-  }
-  .welcome-note {
-    font-size: 1.3125rem;
-    margin-top: 17px;
-  }
-  .welcome-note span {
-    display: none;
-  }
-  .welcome > div {
-    position: relative;
-    z-index: 1;
+    padding: 22px 21px 30px;
   }
   .section-heading {
     gap: 10px;
   }
+  h1,
   h2 {
     font-size: 1.625rem;
-  }
-  .section-heading .eyebrow {
-    font-size: var(--text-label);
-    letter-spacing: 1.4px;
   }
   .sparkle {
     display: none;
@@ -1517,21 +1308,6 @@ h2 {
   .small-label {
     font-size: var(--text-label);
   }
-  .grownup-note {
-    margin: 26px 0 31px;
-    padding: 20px 15px;
-    gap: 12px;
-    align-items: flex-start;
-  }
-  .grownup-note h3 {
-    font-size: 1.1875rem;
-  }
-  .grownup-note p {
-    font-size: var(--text-small);
-  }
-  .note-doodle {
-    margin-top: 3px;
-  }
   .recent-section h2 {
     font-size: 1.4375rem;
   }
@@ -1605,25 +1381,6 @@ h2 {
   .mobile-nav :where(a) svg {
     width: 21px;
     height: 21px;
-  }
-  .page-heading {
-    padding: 32px 0 5px;
-  }
-  .page-heading h1 {
-    font-size: 2.625rem;
-  }
-  .page-heading > p {
-    font-size: var(--text-body);
-    max-width: 290px;
-  }
-  .heading-doodle {
-    right: 13px;
-    top: 65px;
-    opacity: 0.45;
-  }
-  .heading-doodle svg {
-    width: 57px;
-    height: 57px;
   }
   .search-form {
     flex-wrap: wrap;
@@ -1735,34 +1492,20 @@ h2 {
   }
 }
 @media (max-width: 700px) {
-  .reading > .page-heading,
   .reading > .class-filters,
   .reading > search {
     display: none;
-  }
-  .reading {
-    padding-top: 24px;
   }
 }
 @media (max-width: 370px) {
   .campus-label {
     display: none;
   }
-  .garden {
-    width: 65px;
-    top: 130px;
-    right: 0;
-  }
-  .welcome h1 {
-    font-size: 2.125rem;
-  }
-  .welcome p {
-    max-width: 210px;
-  }
   .day-switch a {
     padding-left: 9px;
     padding-right: 9px;
   }
+  h1,
   h2 {
     font-size: 1.4375rem;
   }
@@ -1811,8 +1554,7 @@ html[lang="zh-CN"] {
 html[lang="zh-CN"] :is(h1, h2, h3, h4, .handwritten) {
   letter-spacing: 0;
 }
-html[lang="zh-CN"]
-  :is(h1, h2, .day-card h3, .day-card h4, .empty-state h3, .grownup-note h3) {
+html[lang="zh-CN"] :is(h1, h2, .day-card h3, .day-card h4, .empty-state h3) {
   font-family: "Fraunces", "Songti SC", "Noto Serif CJK SC", serif;
 }
 html[lang="zh-CN"] .handwritten {
@@ -1833,11 +1575,5 @@ html[lang="zh-CN"] .handwritten {
   .sidebar {
     min-height: 88px;
     padding-right: 135px;
-  }
-  .brand {
-    font-size: 1.4rem;
-  }
-  .brand-sub {
-    letter-spacing: 0;
   }
 }

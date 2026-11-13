@@ -21,22 +21,7 @@ export function Plans({
   );
   return (
     <>
-      <header className="page-heading">
-        <span className="eyebrow">{t("ROOM TO GROW")}</span>
-        <h1>
-          {t("A month of")}
-          <br />
-          <span>{t("little possibilities.")}</span>
-        </h1>
-        <p>
-          {t(
-            "Themes, activities, and things to remember, one month at a time.",
-          )}
-        </p>
-        <span className="heading-doodle">
-          <Icon name="calendar" size={85} />
-        </span>
-      </header>
+      <h1 className="sr-only">{t("Lesson plans")}</h1>
       <div className="plans-toolbar">
         <ClassFilters view="plans" selected={selected} month={selectedMonth} />
         <form

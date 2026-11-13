@@ -94,18 +94,7 @@ export function Mailbox({
   const mail = useApi<MailPage>(`/api/mail?${query}`);
   return (
     <div className={`mail-page ${id ? "reading" : ""}`}>
-      <header className="page-heading">
-        <span className="eyebrow">{t("THE CLASSROOM POST")}</span>
-        <h1>
-          {t("A little mail.")}
-          <br />
-          <span>{t("A lot to keep.")}</span>
-        </h1>
-        <p>{t("Every update and attachment, right where you need it.")}</p>
-        <span className="heading-doodle">
-          <Icon name="mail" size={85} />
-        </span>
-      </header>
+      <h1 className="sr-only">{t("Mailbox")}</h1>
       <ClassFilters view="mail" selected={selected} />
       <search>
         <form className="search-form" action="/" method="get">

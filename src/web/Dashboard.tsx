@@ -4,7 +4,7 @@ import { addDays, campusDate } from "../shared/dates";
 import type { MailPage } from "../shared/models";
 import type { ClassHighlight, Highlights } from "../shared/plans";
 import { href, useApi } from "./api";
-import { Garden, Icon, RoomDoodle } from "./art";
+import { Icon, RoomDoodle } from "./art";
 import { ClassBadge, ClassFilters, Empty, LoadState } from "./components";
 import { useI18n } from "./i18n";
 import { DayDetails } from "./lesson-details";
@@ -164,7 +164,6 @@ export function Dashboard({
   tomorrow: boolean;
 }) {
   const { t, displayDate } = useI18n();
-  const site = useApi<{ inboundAddress: string }>("/api/site");
   const [today, setToday] = useState(campusDate());
   useEffect(() => {
     const update = () => setToday(campusDate());
@@ -182,35 +181,11 @@ export function Dashboard({
   );
   return (
     <>
-      <section className="welcome">
-        <div>
-          <div className="eyebrow welcome-label">
-            <span className="tiny-star">✳</span> {t("THE FAMILY NOTEBOOK")}
-          </div>
-          <h1>
-            {t("Little days.")}
-            <br />
-            <span>{t("Big discoveries.")}</span>
-          </h1>
-          <p>
-            {t("Classroom notes, little adventures, and the things")}
-            <br className="desktop-break" />{" "}
-            {t("to remember. All together, just for your family.")}
-          </p>
-          <span className="handwritten welcome-note">
-            {t("a little closer to their world")} <span>↗</span>
-          </span>
-        </div>
-        <Garden />
-      </section>
       <section className="daily-section" aria-labelledby="day-heading">
         <div className="section-heading">
-          <div>
-            <span className="eyebrow">{t("LET'S GET READY")}</span>
-            <h2 id="day-heading">
-              {t("The day ahead")} <span className="sparkle">✧</span>
-            </h2>
-          </div>
+          <h1 id="day-heading">
+            {t("The day ahead")} <span className="sparkle">✧</span>
+          </h1>
           <div className="day-switch">
             <a
               href={href({ class: selected })}
@@ -251,38 +226,9 @@ export function Dashboard({
           <LoadState error={daily.error} retry={daily.retry} />
         )}
       </section>
-      <aside className="grownup-note">
-        <span className="note-doodle">
-          <Icon name="clip" size={27} />
-        </span>
-        <div>
-          <h3>{t("A note for the grown-ups")}</h3>
-          <p>
-            {t(
-              "One little home for all three classrooms. Forward school updates to",
-            )}{" "}
-            {site.data ? (
-              <a href={`mailto:${site.data.inboundAddress}`}>
-                {site.data.inboundAddress}
-              </a>
-            ) : (
-              t("your configured archive address")
-            )}{" "}
-            {t("to keep the notebook growing.")}
-          </p>
-        </div>
-        <span className="handwritten">
-          {t("less searching,")}
-          <br />
-          {t("more being there.")}
-        </span>
-      </aside>
       <section className="recent-section">
         <div className="section-heading">
-          <div>
-            <span className="eyebrow">{t("FROM THE CLASSROOM")}</span>
-            <h2>{t("Fresh from the mailbox")}</h2>
-          </div>
+          <h2>{t("Fresh from the mailbox")}</h2>
           <a
             className="text-link"
             href={href({ view: "mail", class: selected })}

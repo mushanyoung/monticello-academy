@@ -11,7 +11,7 @@ test("switches every view to Chinese, remembers the client choice and keeps a us
   await page.getByRole("button", { name: "中文", exact: true }).click();
   await expect(page.locator("html")).toHaveAttribute("lang", "zh-CN");
   await expect(
-    page.getByRole("heading", { name: "小小的日常， 大大的发现。" }),
+    page.getByRole("heading", { name: "今日小计划", level: 1 }),
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "明天", exact: true }),
@@ -23,6 +23,7 @@ test("switches every view to Chinese, remembers the client choice and keeps a us
   for (const view of ["mail", "plans"]) {
     await page.goto(`/?view=${view}`);
     await expect(page.locator("html")).toHaveAttribute("lang", "zh-CN");
+    await expect(page.locator(".page-heading, .heading-doodle")).toHaveCount(0);
     await expect(
       page.getByRole("navigation", { name: "按班级筛选" }),
     ).toBeVisible();
@@ -45,7 +46,7 @@ test("switches every view to Chinese, remembers the client choice and keeps a us
   await expect(page.locator("#month option:checked")).toHaveText("Sep");
   await expect(page.getByLabel("Year", { exact: true })).toHaveValue("2040");
   await expect(
-    page.getByRole("heading", { name: "A month of little possibilities." }),
+    page.getByRole("heading", { name: "Lesson plans", level: 1 }),
   ).toBeVisible();
   expect(
     await page.evaluate(() => localStorage.getItem("monticello-language")),

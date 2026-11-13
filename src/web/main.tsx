@@ -21,7 +21,7 @@ import { Plans } from "./Plans";
 function App() {
   const { t, displayDate, className } = useI18n();
   useEffect(() => {
-    document.title = `Monticello · ${t("the family notebook")}`;
+    document.title = `Monticello · ${t("Monroe campus")}`;
   }, [t]);
   const params = new URLSearchParams(window.location.search);
   const view = params.get("view") || "today";
@@ -41,12 +41,18 @@ function App() {
       </a>
       <aside className="sidebar">
         <a className="brand" href="/">
-          <span className="brand-mark">
-            <RoomDoodle kind="sun" size={53} />
-          </span>
-          <span>
-            {t("monticello")}
-            <span className="brand-sub">{t("the family notebook")}</span>
+          <span className="brand-name">{t("monticello")}</span>
+          <span className="brand-classrooms">
+            {CLASSES.map((room) => (
+              <span
+                key={room.id}
+                role="img"
+                aria-label={className(room.id)}
+                title={className(room.id)}
+              >
+                <RoomDoodle kind={room.symbol} size={36} />
+              </span>
+            ))}
           </span>
         </a>
         <div className="campus-label">
@@ -67,16 +73,6 @@ function App() {
             </a>
           ))}
         </nav>
-        <div className="sidebar-rooms">
-          <span className="eyebrow">{t("OUR LITTLE CLASSROOMS")}</span>
-          {CLASSES.map((room) => (
-            <a key={room.id} href={href({ view: "mail", class: room.id })}>
-              <span className={`dot ${room.color}`} />
-              {className(room.id)}
-              <Icon name="chevron" size={13} />
-            </a>
-          ))}
-        </div>
         <div className="sidebar-bottom">
           <div className="sidebar-flower">✳</div>
           <p>

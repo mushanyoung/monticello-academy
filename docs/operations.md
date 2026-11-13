@@ -9,7 +9,7 @@
 - 生产 `MAIL_CONFIG` Secret：邮件配置的完整 JSON；`IMPORT_TOKEN` Secret：管理写入密钥；`OPENAI_API_KEY` Secret：用于课程提取的 OpenAI API 凭据。具体值通过 Cloudflare 管理，不进入 Git 或网页 bundle。
 - Cloudflare Bindings / Email Routing：部署资源和路由的事实来源。`pnpm config:pull <worker-name>` 读取已部署 Worker 的绑定和匹配的收件规则，写到忽略的 `.cloudflare/deployment.json`（0600），不打印具体配置。认证账户由 cf profile 选择。
 
-网页通过 `/api/site` 读取公开收件入口；这个入口会在已选择公开的网站上展示。允许转发人、学校邮箱映射和导入密钥不会通过配置 API 暴露。
+公开收件入口可通过 `/api/site` 查询，页面不再展示转发提示卡片。允许转发人、学校邮箱映射和导入密钥不会通过配置 API 暴露。
 
 ## 本地与 CI
 
@@ -31,7 +31,7 @@
 
 ## 导入和故障
 
-历史邮件优先以原始 `.eml` 附件转发，保留 Message-ID 和 To/Cc。Gmail 电脑版可在邮件列表勾选多封，点击顶部“更多 → 作为附件转发”，发到网站显示的收件入口；参见 [Gmail 官方说明](https://support.google.com/mail/answer/9261412?hl=zh-Hans)。接收端将每个 `.eml` 分别归档，跨班和重复批次会去重，日期取原始邮件日期。网站默认展示原始 HTML 排版和内嵌图片，可切换纯文本；外部图片需手动加载。完整 MIME、HTML 和内嵌附件仍保存在可下载的原始 `.eml` 中，已入库邮件无需重新转发即可使用新视图。
+历史邮件优先以原始 `.eml` 附件转发，保留 Message-ID 和 To/Cc。Gmail 电脑版可在邮件列表勾选多封，点击顶部“更多 → 作为附件转发”，发到 Cloudflare Email Routing 中配置的收件入口（也可通过 `/api/site` 查询）；参见 [Gmail 官方说明](https://support.google.com/mail/answer/9261412?hl=zh-Hans)。接收端将每个 `.eml` 分别归档，跨班和重复批次会去重，日期取原始邮件日期。网站默认展示原始 HTML 排版和内嵌图片，可切换纯文本；外部图片需手动加载。完整 MIME、HTML 和内嵌附件仍保存在可下载的原始 `.eml` 中，已入库邮件无需重新转发即可使用新视图。
 
 建议先发 2–3 封核对班级、日期和附件，再每批 5–10 封；每批 `.eml` 附件合计尽量不超过 10 MB，为 MIME 编码留余量。硬限制为整封入站邮件 20 MiB、每封最多 40 个附件、拆分后最多 20 封归档记录、最多三层转发嵌套。若外层还附有普通文件，也会额外保存外层邮件并计入批次限制。Gmail 超过附件上限会改用 Google Drive 链接，接收端不会自动下载这些链接，应改为更小批次。遇到退信按原因缩小批次或修复原件后重发。
 

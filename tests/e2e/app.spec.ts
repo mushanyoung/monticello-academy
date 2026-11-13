@@ -9,9 +9,11 @@ test("opens the notebook and preserves a usable mobile viewport", async ({
   request,
 }) => {
   await page.goto("/");
-  await expect(
-    page.getByRole("heading", { name: /Little days/ }),
-  ).toBeVisible();
+  await expect(page.locator(".brand-name")).toHaveText("monticello");
+  await expect(page.locator(".brand [role=img]")).toHaveCount(3);
+  await expect(page.locator(".brand")).not.toContainText("family notebook");
+  await expect(page.locator(".sidebar-rooms")).toHaveCount(0);
+  await expect(page.locator(".welcome, .grownup-note")).toHaveCount(0);
   await expect(
     page.getByRole("heading", { name: "The day ahead" }),
   ).toBeVisible();
