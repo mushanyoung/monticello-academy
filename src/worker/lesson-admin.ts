@@ -8,6 +8,8 @@ import {
   reconcileLessons,
   retryLesson,
 } from "./lesson-jobs";
+import { indexLessonText } from "./lesson-search";
+import { readExtraction } from "./openai";
 
 export async function lessonAdmin(request: Request, env: Env) {
   if (!(await isAdmin(request, env)))
@@ -83,7 +85,7 @@ export async function lessonAdmin(request: Request, env: Env) {
     );
   }
   const job = path.match(
-    /^\/api\/admin\/lessons\/([a-f0-9]{64})\/(retry|result)$/,
+    /^\/api\/admin\/lessons\/([a-f0-9]{64})\/(retry|result|index)$/,
   );
   if (job?.[1] && job[2] === "retry" && request.method === "POST")
     return Response.json(await retryLesson(env, job[1]), { status: 202 });
@@ -100,6 +102,20 @@ export async function lessonAdmin(request: Request, env: Env) {
         "Cache-Control": "no-store",
       },
     });
+  }
+  if (job?.[1] && job[2] === "index" && request.method === "POST") {
+    const record = await getLessonJob(env, job[1]);
+    const result = record.result_key
+      ? await env.MAIL_BUCKET.get(record.result_key)
+      : null;
+    if (!result || record.status !== "published")
+      throw new HttpError(409, "Only a published result can be indexed.");
+    await indexLessonText(
+      env,
+      record.content_key,
+      readExtraction(await result.json()),
+    );
+    return Response.json({ indexed: true });
   }
   throw new HttpError(404, "Lesson operation not found.");
 }

@@ -27,3 +27,5 @@ Unit XML 保存在 `test-results/unit.xml`，Playwright 产物在 `test-results/
 课程没有审批步骤：测试验证 draft 被拒绝、已有内容保留，以及跨月重叠条目全部保留。
 
 课程 Workflow e2e 使用实际本地 D1、R2、Workflows 与 sendEmail binding；只有 OpenAI HTTP 边界由独立本地服务提供合成 PDF 响应，不访问真实模型。验证自动入队、跨月发布、来源差异同时展示、补齐班级、重复投递去重、瞬时错误重试、持续错误通知、原有计划保留、重试操作和管理结果鉴权。
+
+PDF 搜索用例查询仅存在于模型结果、未出现在邮件正文或文件名中的每周学习目标；同时验证手机每日卡片可展开每周目标。

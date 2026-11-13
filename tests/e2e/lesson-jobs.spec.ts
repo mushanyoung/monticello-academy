@@ -83,6 +83,19 @@ test("automatically parses PDFs, preserves source differences and delivers a not
     "Calendar: wear blue",
   );
   expect(daily.classes[0].weeklyFocus[0].focus[0].items).toContain("Letter Rr");
+  const searched = await (await request.get("/api/mail?q=letter%20rr")).json();
+  expect(
+    searched.items.some((mail: { id: string }) => mail.id === imported.id),
+  ).toBe(true);
+  expect(
+    (
+      await request.post(`/api/admin/lessons/${job?.id}/index`, { headers })
+    ).status(),
+  ).toBe(200);
+  await page.clock.install({ time: new Date("2027-11-30T17:00:00Z") });
+  await page.goto("/?class=sunshine");
+  await page.getByText("This week's focus", { exact: true }).click();
+  await expect(page.getByText("Letter Rr", { exact: false })).toBeVisible();
   expect(
     (await (await request.get(`/api/mail/${imported.id}`)).json()).class_ids,
   ).toContain("sunshine");

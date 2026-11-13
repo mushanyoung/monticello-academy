@@ -37,8 +37,10 @@ export async function listMail(db: D1Database, url: URL) {
     values.push(selected);
   }
   if (q) {
-    terms.push("instr(m.search_text,?) > 0");
-    values.push(q.toLowerCase());
+    terms.push(
+      "(instr(m.search_text,?) > 0 OR EXISTS(SELECT 1 FROM attachments a WHERE a.message_id=m.id AND instr(a.extracted_text,?) > 0))",
+    );
+    values.push(q.toLowerCase(), q.toLowerCase());
   }
   const where = terms.length ? ` WHERE ${terms.join(" AND ")}` : "";
   const [rows, count] = await Promise.all([

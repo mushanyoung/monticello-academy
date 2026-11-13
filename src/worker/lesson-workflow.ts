@@ -10,6 +10,7 @@ import {
 import { sendLessonAlerts } from "./lesson-alerts";
 import { failLesson, getLessonJob, notifyLessonProblem } from "./lesson-jobs";
 import { publishExtraction } from "./lesson-publish";
+import { indexLessonText } from "./lesson-search";
 import {
   LessonError,
   lessonRequest,
@@ -149,6 +150,7 @@ export class LessonWorkflow extends WorkflowEntrypoint<
               messageId: job.message_id,
               filename: job.filename,
             });
+          await indexLessonText(this.env, job.content_key, extraction);
           if (issues.length)
             await notifyLessonProblem(
               this.env,
