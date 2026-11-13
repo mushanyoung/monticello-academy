@@ -1,9 +1,10 @@
 import { CLASSES } from "../shared/classes";
 import { campusDate } from "../shared/dates";
 import type { StoredPlan } from "../shared/plans";
-import { displayDate, href, useApi } from "./api";
+import { href, useApi } from "./api";
 import { Icon, RoomDoodle } from "./art";
 import { ClassBadge, ClassFilters, Empty, LoadState } from "./components";
+import { useI18n } from "./i18n";
 import { DayDetails } from "./lesson-details";
 export function Plans({
   selected,
@@ -12,6 +13,7 @@ export function Plans({
   selected: string;
   month?: string;
 }) {
+  const { t, displayDate } = useI18n();
   const selectedMonth = month || campusDate().slice(0, 7);
   const plans = useApi<{ items: StoredPlan[] }>(
     `/api/plans?${new URLSearchParams({ class: selected, month: selectedMonth })}`,
@@ -19,13 +21,17 @@ export function Plans({
   return (
     <>
       <header className="page-heading">
-        <span className="eyebrow">ROOM TO GROW</span>
+        <span className="eyebrow">{t("ROOM TO GROW")}</span>
         <h1>
-          A month of
+          {t("A month of")}
           <br />
-          <span>little possibilities.</span>
+          <span>{t("little possibilities.")}</span>
         </h1>
-        <p>Themes, activities, and things to remember, one month at a time.</p>
+        <p>
+          {t(
+            "Themes, activities, and things to remember, one month at a time.",
+          )}
+        </p>
         <span className="heading-doodle">
           <Icon name="calendar" size={85} />
         </span>
@@ -35,7 +41,7 @@ export function Plans({
         <form action="/" method="get" className="month-form">
           <input type="hidden" name="view" value="plans" />
           <input type="hidden" name="class" value={selected} />
-          <label htmlFor="month">Month</label>
+          <label htmlFor="month">{t("Month")}</label>
           <input
             id="month"
             name="month"
@@ -44,7 +50,7 @@ export function Plans({
             required
           />
           <button className="button" type="submit">
-            Go <Icon name="arrow" size={16} />
+            {t("Go")} <Icon name="arrow" size={16} />
           </button>
         </form>
       </div>
@@ -72,13 +78,14 @@ export function Plans({
                   <p className="plan-overview">{plan.overview}</p>
                   {plan.sourceKind === "carryover" && (
                     <p className="bring-note">
-                      Partial month · These dates appear in an adjacent month's
-                      PDF.
+                      {t(
+                        "Partial month · These dates appear in an adjacent month's PDF.",
+                      )}
                     </p>
                   )}
                   {!!plan.monthlyReminders?.length && (
                     <div className="objectives">
-                      <span className="small-label">ALL MONTH LONG</span>
+                      <span className="small-label">{t("ALL MONTH LONG")}</span>
                       <ul>
                         {plan.monthlyReminders.map((item) => (
                           <li key={item}>{item}</li>
@@ -89,7 +96,7 @@ export function Plans({
                   {!!plan.sourceNotes?.length && (
                     <div className="objectives">
                       <span className="small-label">
-                        NOTES FROM THE ORIGINAL SOURCES
+                        {t("NOTES FROM THE ORIGINAL SOURCES")}
                       </span>
                       <ul>
                         {plan.sourceNotes.map((note) => (
@@ -99,10 +106,11 @@ export function Plans({
                               className="text-link"
                               href={`/api/attachments/${note.attachmentId}?preview=1#page=${note.pages[0] || 1}`}
                             >
-                              PDF
                               {note.pages.length
-                                ? ` · p. ${note.pages.join(", ")}`
-                                : ""}
+                                ? t("PDF · p. {pages}", {
+                                    pages: note.pages.join(", "),
+                                  })
+                                : t("PDF")}
                             </a>
                           </li>
                         ))}
@@ -112,7 +120,7 @@ export function Plans({
                   {plan.objectives.length > 0 && (
                     <div className="objectives">
                       <span className="small-label">
-                        LITTLE STEPS WE'RE WORKING ON
+                        {t("LITTLE STEPS WE'RE WORKING ON")}
                       </span>
                       <ul>
                         {plan.objectives.map((o) => (
@@ -161,10 +169,12 @@ export function Plans({
                               <strong>{day.title}</strong>
                               <span>
                                 {day.noSchool
-                                  ? "No school"
-                                  : `${day.activities.length} activities`}
+                                  ? t("No school")
+                                  : t("{count} activities", {
+                                      count: day.activities.length,
+                                    })}
                                 {day.bring.length + day.reminders.length > 0
-                                  ? " · Things to remember"
+                                  ? t(" · Things to remember")
                                   : ""}
                               </span>
                             </span>
@@ -178,13 +188,13 @@ export function Plans({
                             ))}
                             {day.bring.length > 0 && (
                               <p className="bring-note">
-                                <strong>Bring along:</strong>{" "}
+                                <strong>{t("Bring along:")}</strong>{" "}
                                 {day.bring.join(" · ")}
                               </p>
                             )}
                             {day.reminders.map((r) => (
                               <p key={r}>
-                                <strong>Remember:</strong> {r}
+                                <strong>{t("Remember:")}</strong> {r}
                               </p>
                             ))}
                             {day.note && <p>{day.note}</p>}
@@ -193,7 +203,7 @@ export function Plans({
                                 className="text-link"
                                 href={`/api/attachments/${day.sourceAttachmentId}?preview=1#page=${day.sourcePages?.[0] || 1}`}
                               >
-                                Source PDF · p.{" "}
+                                {t("Source PDF · p.")}{" "}
                                 {day.sourcePages?.join(", ") || "1"}
                               </a>
                             )}
@@ -205,7 +215,7 @@ export function Plans({
                                   key={JSON.stringify(entry)}
                                 >
                                   <span className="small-label">
-                                    ALSO IN THE SOURCE DOCUMENTS
+                                    {t("ALSO IN THE SOURCE DOCUMENTS")}
                                   </span>
                                   <DayDetails day={entry} />
                                 </div>
@@ -232,31 +242,34 @@ export function Plans({
                         class: plan.classId,
                       })}
                     >
-                      Read the source email <Icon name="arrow" size={18} />
+                      {t("Read the source email")}{" "}
+                      <Icon name="arrow" size={18} />
                     </a>
-                    <span>Updated {displayDate(plan.updatedAt)}</span>
+                    <span>
+                      {t("Updated")} {displayDate(plan.updatedAt)}
+                    </span>
                   </div>
                 </article>
               );
             })}
           </div>
         ) : (
-          <Empty title="This month is still taking shape." icon="calendar">
+          <Empty title={t("This month is still taking shape.")} icon="calendar">
             <p>
-              No lesson plans for{" "}
-              {displayDate(`${selectedMonth}-01`, {
-                month: "long",
-                year: "numeric",
-              })}{" "}
-              yet.
+              {t("No lesson plans for {month} yet.", {
+                month: displayDate(`${selectedMonth}-01`, {
+                  month: "long",
+                  year: "numeric",
+                }),
+              })}
               <br />
-              Classroom emails and attachments have the original details.
+              {t("Classroom emails and attachments have the original details.")}
             </p>
             <a
               className="button"
               href={href({ view: "mail", class: selected })}
             >
-              Explore classroom mail <Icon name="arrow" size={18} />
+              {t("Explore classroom mail")} <Icon name="arrow" size={18} />
             </a>
           </Empty>
         )

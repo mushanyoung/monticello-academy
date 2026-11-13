@@ -19,6 +19,7 @@
     "check:public": "node scripts/check-public-source.ts"
   },
   "devDependencies": {
+    "@babel/parser": "8.1.2",
     "@biomejs/biome": "2.6.7",
     "@cloudflare/vite-plugin": "2.0.0-beta.v.17",
     "@playwright/test": "1.65.0",

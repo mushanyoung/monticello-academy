@@ -1,4 +1,7 @@
+import { useEffect } from "react";
 import { createRoot } from "react-dom/client";
+import { useI18n } from "./i18n";
+import { LanguageProvider, LanguageSwitch } from "./language";
 import "@fontsource/dm-sans/latin-400.css";
 import "@fontsource/dm-sans/latin-500.css";
 import "@fontsource/dm-sans/latin-600.css";
@@ -9,27 +12,32 @@ import "@fontsource/caveat/latin-500.css";
 import "./styles.css";
 import { CLASSES, isClassId } from "../shared/classes";
 import { campusDate } from "../shared/dates";
-import { displayDate, href, useApi } from "./api";
+import { href, useApi } from "./api";
 import { Icon, RoomDoodle } from "./art";
 import { Dashboard } from "./Dashboard";
 import { Mailbox } from "./Mailbox";
 import { Plans } from "./Plans";
 
 function App() {
+  const { t, displayDate, className } = useI18n();
+  useEffect(() => {
+    document.title = `Monticello · ${t("the family notebook")}`;
+  }, [t]);
   const params = new URLSearchParams(window.location.search);
   const view = params.get("view") || "today";
   const c = params.get("class") || "all";
   const selected = isClassId(c) ? c : "all";
   const stats = useApi<{ total: number }>("/api/stats");
   const links = [
-    { view: "today", name: "The day ahead", icon: "sun" },
-    { view: "mail", name: "Mailbox", icon: "mail" },
-    { view: "plans", name: "Lesson plans", icon: "calendar" },
+    { view: "today", name: t("The day ahead"), icon: "sun" },
+    { view: "mail", name: t("Mailbox"), icon: "mail" },
+    { view: "plans", name: t("Lesson plans"), icon: "calendar" },
   ] as const;
   return (
     <div className="app">
+      <LanguageSwitch />
       <a className="skip-link" href="#main">
-        Skip to content
+        {t("Skip to content")}
       </a>
       <aside className="sidebar">
         <a className="brand" href="/">
@@ -37,13 +45,14 @@ function App() {
             <RoomDoodle kind="sun" size={53} />
           </span>
           <span>
-            monticello<span className="brand-sub">the family notebook</span>
+            {t("monticello")}
+            <span className="brand-sub">{t("the family notebook")}</span>
           </span>
         </a>
         <div className="campus-label">
-          <span className="dot green" /> MONROE CAMPUS
+          <span className="dot green" /> {t("MONROE CAMPUS")}
         </div>
-        <nav className="main-nav" aria-label="Main navigation">
+        <nav className="main-nav" aria-label={t("Main navigation")}>
           {links.map((link) => (
             <a
               key={link.view}
@@ -59,11 +68,11 @@ function App() {
           ))}
         </nav>
         <div className="sidebar-rooms">
-          <span className="eyebrow">OUR LITTLE CLASSROOMS</span>
+          <span className="eyebrow">{t("OUR LITTLE CLASSROOMS")}</span>
           {CLASSES.map((room) => (
             <a key={room.id} href={href({ view: "mail", class: room.id })}>
               <span className={`dot ${room.color}`} />
-              {room.name}
+              {className(room.id)}
               <Icon name="chevron" size={13} />
             </a>
           ))}
@@ -71,18 +80,18 @@ function App() {
         <div className="sidebar-bottom">
           <div className="sidebar-flower">✳</div>
           <p>
-            Small moments.
+            {t("Small moments.")}
             <br />
-            Wonderful beginnings.
+            {t("Wonderful beginnings.")}
           </p>
-          <span className="handwritten">let's grow together.</span>
+          <span className="handwritten">{t("let's grow together.")}</span>
         </div>
       </aside>
       <div className="main-shell">
         <header className="topbar">
           <span>
-            Monticello Academy <span className="topbar-divider">/</span>{" "}
-            <strong>Monroe campus</strong>
+            {t("Monticello Academy")} <span className="topbar-divider">/</span>{" "}
+            <strong>{t("Monroe campus")}</strong>
           </span>
           <span className="topbar-date">
             <span className="dot" />
@@ -109,13 +118,13 @@ function App() {
           )}
         </main>
         <footer className="footer">
-          <span>MADE FOR THE LITTLE THINGS THAT MATTER.</span>
+          <span>{t("MADE FOR THE LITTLE THINGS THAT MATTER.")}</span>
           <span>
-            Monroe campus <span>♡</span> Monticello families
+            {t("Monroe campus")} <span>♡</span> {t("Monticello families")}
           </span>
         </footer>
       </div>
-      <nav className="mobile-nav" aria-label="Mobile navigation">
+      <nav className="mobile-nav" aria-label={t("Mobile navigation")}>
         {links.map((link) => (
           <a
             key={link.view}
@@ -123,7 +132,7 @@ function App() {
             aria-current={view === link.view ? "page" : undefined}
           >
             <Icon name={link.icon} />
-            <span>{link.view === "today" ? "Today" : link.name}</span>
+            <span>{link.view === "today" ? t("Today") : link.name}</span>
           </a>
         ))}
       </nav>
@@ -132,4 +141,8 @@ function App() {
 }
 const root = document.getElementById("root");
 if (!root) throw new Error("Missing application root");
-createRoot(root).render(<App />);
+createRoot(root).render(
+  <LanguageProvider>
+    <App />
+  </LanguageProvider>,
+);

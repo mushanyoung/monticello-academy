@@ -105,7 +105,7 @@ test("falls back to readable text when formatting fails and can retry", async ({
     })
   ).json();
   let first = true;
-  await page.route(`**/api/mail/${id}/content`, async (route) => {
+  await page.route(`**/api/mail/${id}/content?*`, async (route) => {
     if (first) {
       first = false;
       await route.fulfill({

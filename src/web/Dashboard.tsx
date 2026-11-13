@@ -3,12 +3,14 @@ import { CLASSES } from "../shared/classes";
 import { addDays, campusDate } from "../shared/dates";
 import type { MailPage } from "../shared/models";
 import type { ClassHighlight, Highlights } from "../shared/plans";
-import { displayDate, href, useApi } from "./api";
+import { href, useApi } from "./api";
 import { Garden, Icon, RoomDoodle } from "./art";
 import { ClassBadge, ClassFilters, Empty, LoadState } from "./components";
+import { useI18n } from "./i18n";
 import { DayDetails } from "./lesson-details";
 
 function DayCard({ highlight }: { highlight: ClassHighlight }) {
+  const { t, className } = useI18n();
   const room = CLASSES.find((c) => c.id === highlight.classId);
   if (!room) return null;
   const day = highlight.day;
@@ -17,14 +19,14 @@ function DayCard({ highlight }: { highlight: ClassHighlight }) {
       <div className="room-heading">
         <RoomDoodle kind={room.symbol} />
         <div>
-          <span className="eyebrow">A peek into</span>
-          <h3>{room.name}</h3>
+          <span className="eyebrow">{t("A peek into")}</span>
+          <h3>{className(room.id)}</h3>
         </div>
       </div>
       {day ? (
         <div className="day-content">
           <span className="small-label">
-            {day.noSchool ? "NO SCHOOL" : "TODAY'S LITTLE ADVENTURE"}
+            {day.noSchool ? t("NO SCHOOL") : t("TODAY'S LITTLE ADVENTURE")}
           </span>
           <h4>{day.title}</h4>
           <p className="theme">{highlight.theme}</p>
@@ -36,7 +38,11 @@ function DayCard({ highlight }: { highlight: ClassHighlight }) {
           ))}
           {day.activities.length > 3 && (
             <details className="day-note">
-              <summary>More activities ({day.activities.length - 3})</summary>
+              <summary>
+                {t("More activities ({count})", {
+                  count: day.activities.length - 3,
+                })}
+              </summary>
               {day.activities.slice(3).map((activity) => (
                 <p key={`${activity.area}-${activity.description}`}>
                   <strong>{activity.area}:</strong> {activity.description}
@@ -46,7 +52,7 @@ function DayCard({ highlight }: { highlight: ClassHighlight }) {
           )}
           {!!highlight.weeklyFocus?.length && (
             <details className="day-note">
-              <summary>This week's focus</summary>
+              <summary>{t("This week's focus")}</summary>
               {highlight.weeklyFocus.map((week) => (
                 <div key={JSON.stringify(week)}>
                   <p>
@@ -63,11 +69,11 @@ function DayCard({ highlight }: { highlight: ClassHighlight }) {
           )}
           {(day.bring.length > 0 || day.reminders.length > 0) && (
             <div className="reminders">
-              <span className="small-label">BEFORE YOU HEAD OUT</span>
+              <span className="small-label">{t("BEFORE YOU HEAD OUT")}</span>
               {day.bring.map((item) => (
                 <p key={item}>
                   <Icon name="check" size={16} />
-                  Bring: {item}
+                  {t("Bring:")} {item}
                 </p>
               ))}
               {day.reminders.map((item) => (
@@ -81,7 +87,7 @@ function DayCard({ highlight }: { highlight: ClassHighlight }) {
           {day.note && <p className="day-note">{day.note}</p>}
           {!!highlight.monthlyReminders?.length && (
             <details className="day-note">
-              <summary>All-month reminders</summary>
+              <summary>{t("All-month reminders")}</summary>
               {highlight.monthlyReminders.map((item) => (
                 <p key={item}>{item}</p>
               ))}
@@ -89,7 +95,7 @@ function DayCard({ highlight }: { highlight: ClassHighlight }) {
           )}
           {!!highlight.alternatives?.length && (
             <details className="day-note" open>
-              <summary>Also in the source documents</summary>
+              <summary>{t("Also in the source documents")}</summary>
               {highlight.alternatives.map((entry) => (
                 <DayDetails key={JSON.stringify(entry)} day={entry} />
               ))}
@@ -97,7 +103,11 @@ function DayCard({ highlight }: { highlight: ClassHighlight }) {
           )}
           {!!highlight.sourceNotes?.length && (
             <details className="day-note">
-              <summary>Source notes ({highlight.sourceNotes.length})</summary>
+              <summary>
+                {t("Source notes ({count})", {
+                  count: highlight.sourceNotes.length,
+                })}
+              </summary>
               {highlight.sourceNotes.map((note) => (
                 <p key={note}>{note}</p>
               ))}
@@ -108,20 +118,26 @@ function DayCard({ highlight }: { highlight: ClassHighlight }) {
         <div className="day-content pending">
           <span className="small-label">
             {highlight.status === "no-day"
-              ? "NO ENTRY FOR THIS DATE"
-              : "A NEW PAGE IS WAITING"}
+              ? t("NO ENTRY FOR THIS DATE")
+              : t("A NEW PAGE IS WAITING")}
           </span>
           <h4>
             {highlight.status === "no-day"
-              ? "A little space in the calendar."
-              : "Good things are on their way."}
+              ? t("A little space in the calendar.")
+              : t("Good things are on their way.")}
           </h4>
           <p>
             {highlight.status === "no-day"
-              ? "The monthly plan doesn't list this day. Check classroom mail for updates."
-              : "Once the classroom's lesson plan is added, you'll find activities and things to remember right here."}
+              ? t(
+                  "The monthly plan doesn't list this day. Check classroom mail for updates.",
+                )
+              : t(
+                  "Once the classroom's lesson plan is added, you'll find activities and things to remember right here.",
+                )}
           </p>
-          <span className="handwritten">a little more to discover soon ♡</span>
+          <span className="handwritten">
+            {t("a little more to discover soon ♡")}
+          </span>
         </div>
       )}
       <a
@@ -132,7 +148,7 @@ function DayCard({ highlight }: { highlight: ClassHighlight }) {
           month: day?.date.slice(0, 7),
         })}
       >
-        {day ? "See the month's plan" : "Visit classroom mail"}
+        {day ? t("See the month's plan") : t("Visit classroom mail")}
         <Icon name="arrow" size={19} />
       </a>
     </article>
@@ -145,6 +161,7 @@ export function Dashboard({
   selected: string;
   tomorrow: boolean;
 }) {
+  const { t, displayDate } = useI18n();
   const site = useApi<{ inboundAddress: string }>("/api/site");
   const [today, setToday] = useState(campusDate());
   useEffect(() => {
@@ -166,20 +183,20 @@ export function Dashboard({
       <section className="welcome">
         <div>
           <div className="eyebrow welcome-label">
-            <span className="tiny-star">✳</span> THE FAMILY NOTEBOOK
+            <span className="tiny-star">✳</span> {t("THE FAMILY NOTEBOOK")}
           </div>
           <h1>
-            Little days.
+            {t("Little days.")}
             <br />
-            <span>Big discoveries.</span>
+            <span>{t("Big discoveries.")}</span>
           </h1>
           <p>
-            Classroom notes, little adventures, and the things
-            <br className="desktop-break" /> to remember. All together, just for
-            your family.
+            {t("Classroom notes, little adventures, and the things")}
+            <br className="desktop-break" />{" "}
+            {t("to remember. All together, just for your family.")}
           </p>
           <span className="handwritten welcome-note">
-            a little closer to their world <span>↗</span>
+            {t("a little closer to their world")} <span>↗</span>
           </span>
         </div>
         <Garden />
@@ -187,9 +204,9 @@ export function Dashboard({
       <section className="daily-section" aria-labelledby="day-heading">
         <div className="section-heading">
           <div>
-            <span className="eyebrow">LET'S GET READY</span>
+            <span className="eyebrow">{t("LET'S GET READY")}</span>
             <h2 id="day-heading">
-              The day ahead <span className="sparkle">✧</span>
+              {t("The day ahead")} <span className="sparkle">✧</span>
             </h2>
           </div>
           <div className="day-switch">
@@ -197,13 +214,13 @@ export function Dashboard({
               href={href({ class: selected })}
               aria-current={!tomorrow ? "date" : undefined}
             >
-              Today
+              {t("Today")}
             </a>
             <a
               href={href({ class: selected, day: "tomorrow" })}
               aria-current={tomorrow ? "date" : undefined}
             >
-              Tomorrow
+              {t("Tomorrow")}
             </a>
           </div>
         </div>
@@ -217,7 +234,7 @@ export function Dashboard({
               year: "numeric",
             })}
           </span>
-          <span className="time-zone">· Monroe campus time</span>
+          <span className="time-zone">{t("· Monroe campus time")}</span>
         </div>
         <ClassFilters view="today" selected={selected} />
         {daily.data ? (
@@ -237,36 +254,38 @@ export function Dashboard({
           <Icon name="clip" size={27} />
         </span>
         <div>
-          <h3>A note for the grown-ups</h3>
+          <h3>{t("A note for the grown-ups")}</h3>
           <p>
-            One little home for all three classrooms. Forward school updates to{" "}
+            {t(
+              "One little home for all three classrooms. Forward school updates to",
+            )}{" "}
             {site.data ? (
               <a href={`mailto:${site.data.inboundAddress}`}>
                 {site.data.inboundAddress}
               </a>
             ) : (
-              "your configured archive address"
+              t("your configured archive address")
             )}{" "}
-            to keep the notebook growing.
+            {t("to keep the notebook growing.")}
           </p>
         </div>
         <span className="handwritten">
-          less searching,
+          {t("less searching,")}
           <br />
-          more being there.
+          {t("more being there.")}
         </span>
       </aside>
       <section className="recent-section">
         <div className="section-heading">
           <div>
-            <span className="eyebrow">FROM THE CLASSROOM</span>
-            <h2>Fresh from the mailbox</h2>
+            <span className="eyebrow">{t("FROM THE CLASSROOM")}</span>
+            <h2>{t("Fresh from the mailbox")}</h2>
           </div>
           <a
             className="text-link"
             href={href({ view: "mail", class: selected })}
           >
-            All mail <Icon name="arrow" size={18} />
+            {t("All mail")} <Icon name="arrow" size={18} />
           </a>
         </div>
         {mail.data ? (
@@ -298,11 +317,11 @@ export function Dashboard({
               ))}
             </div>
           ) : (
-            <Empty title="Your notebook is ready.">
+            <Empty title={t("Your notebook is ready.")}>
               <p>
-                The first classroom email will find a home here.
+                {t("The first classroom email will find a home here.")}
                 <br />
-                All the little details, easy to find again.
+                {t("All the little details, easy to find again.")}
               </p>
             </Empty>
           )

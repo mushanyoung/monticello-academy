@@ -14,6 +14,7 @@ Monroe campus 三班的邮件档案、月度课程计划与每日提醒。`src/w
 - 在已有授权内主动推进；小步完成可验证、可回退的单元，通过适用检查后立即实际 Git commit。行为、命令或架构变化同时更新文档。
 - 禁止独立代码审查、reviewer agent、额外 code review 任务或 AI 自动审查工作流；实现调试和验证正常进行。
 - 课程永远不设待确认或人工审批状态。原文矛盾保留全部说法、来源并展示；技术解析或入库失败自动重试并邮件通知。
+- 网站和入库内容同时支持中文、英文；浏览器语言决定初始语言，无匹配偏好时默认中文，手动选择仅保存在当前客户端。UI、邮件、课程与每日提醒的变更必须同步维护并验证两种语言。
 - 公开仓库：源码、配置和文档不提交真实邮箱、部署账户/资源 ID、部署网址、凭据、真实邮件或孩子信息；仅用保留域名示例。具体信息放 Cloudflare Secrets/Bindings/Routing，本地缓存必须被 Git 忽略。明确允许 Git 身份元数据公开个人邮箱，提交使用正常 Git 身份，禁止再次将作者或提交者匿名化；范围见 `docs/public-repository.md`。
 - 测试数据不能作为实际课程展示；公开前扫描全部历史和提交元数据，禁止把旧历史合并回来。
 
@@ -27,6 +28,7 @@ Monroe campus 三班的邮件档案、月度课程计划与每日提醒。`src/w
 - 环境、命令、提交、CI：`docs/development.md`
 - 邮件、存储、去重、查询、安全：`docs/architecture.md`
 - UI、颜色、布局、移动体验：`docs/design-system.md`
+- 双语、翻译流程、语言回退：`docs/localization.md`
 - 测试、边界、失败诊断：`docs/testing.md`
 - 部署、转发入口、操作：`docs/operations.md`
 - 配置模板、公开仓库、历史脱敏：`docs/public-repository.md`

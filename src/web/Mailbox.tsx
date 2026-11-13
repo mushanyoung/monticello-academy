@@ -1,9 +1,10 @@
 import { CLASSES } from "../shared/classes";
 import type { MailDetail, MailPage } from "../shared/models";
-import { displayDate, href, useApi } from "./api";
+import { href, useApi } from "./api";
 import { Icon } from "./art";
 import { ClassBadge, ClassFilters, Empty, LoadState } from "./components";
 import { EmailContent } from "./EmailContent";
+import { useI18n } from "./i18n";
 
 function MailReader({
   id,
@@ -16,6 +17,7 @@ function MailReader({
   q: string;
   sort: string;
 }) {
+  const { t, displayDate, language } = useI18n();
   const mail = useApi<MailDetail>(`/api/mail/${id}`);
   if (!mail.data) return <LoadState error={mail.error} retry={mail.retry} />;
   const item = mail.data;
@@ -25,13 +27,13 @@ function MailReader({
         className="text-link back-link"
         href={href({ view: "mail", class: selected, q, sort })}
       >
-        ← Back to mailbox
+        {t("← Back to mailbox")}
       </a>
       <div className="badges">
         {item.class_ids.length ? (
           item.class_ids.map((c) => <ClassBadge key={c} id={c} />)
         ) : (
-          <span className="badge">Classroom not identified</span>
+          <span className="badge">{t("Classroom not identified")}</span>
         )}
       </div>
       <h2>{item.subject}</h2>
@@ -45,23 +47,28 @@ function MailReader({
         </div>
       </div>
       <p className="mail-date">
-        {displayDate(item.sent_at, { dateStyle: "full", timeStyle: "short" })} ·
-        Pacific time
+        {displayDate(item.sent_at, { dateStyle: "full", timeStyle: "short" })}{" "}
+        {t("· Pacific time")}
       </p>
       <details className="mail-metadata">
-        <summary>Message details</summary>
-        <p>To: {item.recipients || "Not included in the original headers"}</p>
+        <summary>{t("Message details")}</summary>
         <p>
-          Archived:{" "}
+          {t("To:")}{" "}
+          {item.recipients || t("Not included in the original headers")}
+        </p>
+        <p>
+          {t("Archived:")}{" "}
           {displayDate(item.received_at, {
             dateStyle: "medium",
             timeStyle: "short",
           })}
         </p>
-        <a href={`/api/original/${item.id}`}>Download original email (.eml)</a>
+        <a href={`/api/original/${item.id}`}>
+          {t("Download original email (.eml)")}
+        </a>
       </details>
       <EmailContent
-        key={item.id}
+        key={`${item.id}-${language}`}
         id={item.id}
         text={item.body_text}
         attachments={item.attachments}
@@ -76,6 +83,7 @@ export function Mailbox({
   selected: string;
   params: URLSearchParams;
 }) {
+  const { t, displayDate, className } = useI18n();
   const q = params.get("q") || "";
   const sort = params.get("sort") || "newest";
   const page = params.get("page") || "1";
@@ -85,13 +93,13 @@ export function Mailbox({
   return (
     <div className={`mail-page ${id ? "reading" : ""}`}>
       <header className="page-heading">
-        <span className="eyebrow">THE CLASSROOM POST</span>
+        <span className="eyebrow">{t("THE CLASSROOM POST")}</span>
         <h1>
-          A little mail.
+          {t("A little mail.")}
           <br />
-          <span>A lot to keep.</span>
+          <span>{t("A lot to keep.")}</span>
         </h1>
-        <p>Every update and attachment, right where you need it.</p>
+        <p>{t("Every update and attachment, right where you need it.")}</p>
         <span className="heading-doodle">
           <Icon name="mail" size={85} />
         </span>
@@ -103,39 +111,44 @@ export function Mailbox({
           <input type="hidden" name="class" value={selected} />
           <label className="search-field">
             <Icon name="search" size={19} />
-            <span className="sr-only">Search mail</span>
+            <span className="sr-only">{t("Search mail")}</span>
             <input
               type="search"
               name="q"
               defaultValue={q}
               maxLength={200}
-              placeholder="Search words, senders, or attachment names…"
+              placeholder={t("Search words, senders, or attachment names…")}
             />
           </label>
           <label className="sort-field">
-            <span className="sr-only">Sort by time</span>
+            <span className="sr-only">{t("Sort by time")}</span>
             <select name="sort" defaultValue={sort}>
-              <option value="newest">Newest first</option>
-              <option value="oldest">Oldest first</option>
+              <option value="newest">{t("Newest first")}</option>
+              <option value="oldest">{t("Oldest first")}</option>
             </select>
           </label>
           <button type="submit" className="button">
-            Search <Icon name="arrow" size={17} />
+            {t("Search")} <Icon name="arrow" size={17} />
           </button>
         </form>
       </search>
       <div className={`mail-layout ${id ? "has-detail" : ""}`}>
-        <section className="mail-results" aria-label="Email results">
+        <section className="mail-results" aria-label={t("Email results")}>
           {mail.data ? (
             <>
               <div className="results-heading">
                 <span>
-                  {mail.data.total} {mail.data.total === 1 ? "email" : "emails"}
-                  {q ? ` matching “${q}”` : " in your notebook"}
+                  {t(
+                    mail.data.total === 1 ? "{count} email" : "{count} emails",
+                    { count: mail.data.total },
+                  )}
+                  {q
+                    ? t(" matching “{query}”", { query: q })
+                    : t(" in your notebook")}
                 </span>
                 {q && (
                   <a href={href({ view: "mail", class: selected })}>
-                    Clear search
+                    {t("Clear search")}
                   </a>
                 )}
               </div>
@@ -161,7 +174,9 @@ export function Mailbox({
                         </time>
                       </div>
                       <h3>{item.subject}</h3>
-                      <p>{item.snippet || "An update from the classroom."}</p>
+                      <p>
+                        {item.snippet || t("An update from the classroom.")}
+                      </p>
                       <div className="mail-item-bottom">
                         <div className="badges">
                           {item.class_ids.map((c) => (
@@ -171,13 +186,13 @@ export function Mailbox({
                         {item.attachment_count > 0 && (
                           <span
                             className="attachment-count"
-                            title="All files, including inline images"
+                            title={t("All files, including inline images")}
                           >
                             <Icon name="clip" size={14} />
                             {item.attachment_count}
                             <span className="sr-only">
                               {" "}
-                              files, including inline images
+                              {t("files, including inline images")}
                             </span>
                           </span>
                         )}
@@ -189,19 +204,31 @@ export function Mailbox({
                 <Empty
                   title={
                     q
-                      ? "No notes found this time."
-                      : "A fresh page in the notebook."
+                      ? t("No notes found this time.")
+                      : t("A fresh page in the notebook.")
                   }
                 >
                   <p>
                     {q
-                      ? "Try a different word or classroom. You can also search attachment names."
-                      : `Emails for ${CLASSES.find((c) => c.id === selected)?.name || "the classrooms"} will appear here when they arrive.`}
+                      ? t(
+                          "Try a different word or classroom. You can also search attachment names.",
+                        )
+                      : t(
+                          "Emails for {classroom} will appear here when they arrive.",
+                          {
+                            classroom: CLASSES.some((c) => c.id === selected)
+                              ? className(
+                                  CLASSES.find((c) => c.id === selected)?.id ||
+                                    "sunshine",
+                                )
+                              : t("the classrooms"),
+                          },
+                        )}
                   </p>
                 </Empty>
               )}
               {mail.data.total > mail.data.pageSize && (
-                <nav className="pagination" aria-label="Email pages">
+                <nav className="pagination" aria-label={t("Email pages")}>
                   {mail.data.page > 1 ? (
                     <a
                       href={href({
@@ -212,14 +239,16 @@ export function Mailbox({
                         page: mail.data.page - 1,
                       })}
                     >
-                      ← Previous
+                      {t("← Previous")}
                     </a>
                   ) : (
                     <span />
                   )}
                   <span>
-                    Page {mail.data.page} of{" "}
-                    {Math.ceil(mail.data.total / mail.data.pageSize)}
+                    {t("Page {page} of {total}", {
+                      page: mail.data.page,
+                      total: Math.ceil(mail.data.total / mail.data.pageSize),
+                    })}
                   </span>
                   {mail.data.page * mail.data.pageSize < mail.data.total ? (
                     <a
@@ -231,7 +260,7 @@ export function Mailbox({
                         page: mail.data.page + 1,
                       })}
                     >
-                      Next →
+                      {t("Next →")}
                     </a>
                   ) : (
                     <span />

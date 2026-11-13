@@ -1,14 +1,18 @@
 import type { Attachment } from "../shared/models";
 import { Icon } from "./art";
+import { useI18n } from "./i18n";
 
 export function Attachments({ items }: { items: Attachment[] }) {
+  const { t } = useI18n();
   return (
     items.length > 0 && (
       <section className="attachments">
         <h3>
           <Icon name="clip" size={19} />
-          {items.length} attachment
-          {items.length === 1 ? "" : "s"}
+          {t(
+            items.length === 1 ? "{count} attachment" : "{count} attachments",
+            { count: items.length },
+          )}
         </h3>
         {items.map((a) => (
           <div className="attachment" key={a.id}>
@@ -38,14 +42,17 @@ export function Attachments({ items }: { items: Attachment[] }) {
                   target="_blank"
                   rel="noreferrer"
                 >
-                  View
-                  <span className="sr-only"> {a.filename} in a new tab</span>
+                  {t("View")}
+                  <span className="sr-only">
+                    {" "}
+                    {a.filename} {t("in a new tab")}
+                  </span>
                 </a>
               )}
               <a
                 className="icon-button"
                 href={`/api/attachments/${a.id}`}
-                aria-label={`Download ${a.filename}`}
+                aria-label={t("Download {filename}", { filename: a.filename })}
               >
                 <Icon name="download" size={20} />
               </a>

@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-export function useApi<T>(url: string) {
+import { useLanguage } from "./language";
+export function useApi<T>(sourceUrl: string) {
+  const { language } = useLanguage();
+  const localized = new URL(sourceUrl, window.location.origin);
+  localized.searchParams.set("lang", language);
+  const url = `${localized.pathname}${localized.search}`;
   const [state, setState] = useState<{
     url: string;
     data: T | null;
@@ -45,13 +50,4 @@ export function href(params: Record<string, string | number | undefined>) {
   for (const [key, value] of Object.entries(params))
     if (value !== undefined && value !== "") search.set(key, String(value));
   return `/?${search}`;
-}
-export function displayDate(
-  date: string,
-  options: Intl.DateTimeFormatOptions = { month: "short", day: "numeric" },
-) {
-  return new Intl.DateTimeFormat("en-US", {
-    ...options,
-    timeZone: "America/Los_Angeles",
-  }).format(new Date(date.length === 10 ? `${date}T12:00:00-08:00` : date));
 }

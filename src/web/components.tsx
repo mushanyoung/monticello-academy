@@ -2,12 +2,14 @@ import type { ReactNode } from "react";
 import { CLASSES, type ClassId } from "../shared/classes";
 import { href } from "./api";
 import { Icon } from "./art";
+import { useI18n } from "./i18n";
 export function ClassBadge({ id }: { id: ClassId }) {
+  const { className } = useI18n();
   const room = CLASSES.find((c) => c.id === id);
   return room ? (
     <span className={`badge ${room.color}`}>
       <span className="dot" />
-      {room.name}
+      {className(room.id)}
     </span>
   ) : null;
 }
@@ -20,6 +22,7 @@ export function ClassFilters({
   selected: string;
   month?: string;
 }) {
+  const { t, className } = useI18n();
   const current = new URLSearchParams(window.location.search);
   const context = {
     q: view === "mail" ? current.get("q") || undefined : undefined,
@@ -27,13 +30,13 @@ export function ClassFilters({
     day: view === "today" ? current.get("day") || undefined : undefined,
   };
   return (
-    <nav className="class-filters" aria-label="Filter by classroom">
+    <nav className="class-filters" aria-label={t("Filter by classroom")}>
       <a
         className={selected === "all" ? "selected" : ""}
         href={href({ ...context, view, month })}
         aria-current={selected === "all" ? "true" : undefined}
       >
-        All classrooms
+        {t("All classrooms")}
       </a>
       {CLASSES.map((c) => (
         <a
@@ -43,7 +46,7 @@ export function ClassFilters({
           aria-current={selected === c.id ? "true" : undefined}
         >
           <span className={`dot ${c.color}`} />
-          {c.name}
+          {className(c.id)}
         </a>
       ))}
     </nav>
@@ -56,19 +59,20 @@ export function LoadState({
   error: string | null;
   retry: () => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="load-state" role={error ? "alert" : "status"}>
       {error ? (
         <>
-          <p>{error}</p>
+          <p>{t("We couldn't open the notebook. Please try again.")}</p>
           <button type="button" className="button" onClick={retry}>
-            Try again <Icon name="arrow" size={16} />
+            {t("Try again")} <Icon name="arrow" size={16} />
           </button>
         </>
       ) : (
         <>
           <span className="loading-dot" />
-          <p>Opening your notebook…</p>
+          <p>{t("Opening your notebook…")}</p>
         </>
       )}
     </div>

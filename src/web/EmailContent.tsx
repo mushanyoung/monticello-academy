@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Attachment } from "../shared/models";
 import { Attachments } from "./Attachments";
+import { useI18n } from "./i18n";
 
 export function EmailContent({
   id,
@@ -11,6 +12,7 @@ export function EmailContent({
   text: string;
   attachments: Attachment[];
 }) {
+  const { t, language } = useI18n();
   const [mode, setMode] = useState<"original" | "text">("original");
   const [hasHtml, setHasHtml] = useState(true);
   const [images, setImages] = useState(false);
@@ -35,9 +37,12 @@ export function EmailContent({
   );
   return (
     <>
-      <section className="email-content" aria-label="Message content">
+      <section className="email-content" aria-label={t("Message content")}>
         {hasHtml && (
-          <fieldset className="email-view-options" aria-label="Email display">
+          <fieldset
+            className="email-view-options"
+            aria-label={t("Email display")}
+          >
             <button
               type="button"
               aria-pressed={mode === "original"}
@@ -46,36 +51,37 @@ export function EmailContent({
                 setFailed(false);
               }}
             >
-              Original formatting
+              {t("Original formatting")}
             </button>
             <button
               type="button"
               aria-pressed={mode === "text"}
               onClick={() => setMode("text")}
             >
-              Plain text
+              {t("Plain text")}
             </button>
           </fieldset>
         )}
         {externalImages > 0 && !images && mode === "original" && !failed && (
           <div className="email-image-notice">
-            <span>External images are hidden.</span>
+            <span>{t("External images are hidden.")}</span>
             <button type="button" onClick={() => setImages(true)}>
-              Load external images
+              {t("Load external images")}
             </button>
           </div>
         )}
         {failed && (
           <p role="status" className="email-view-error">
-            Original formatting couldn't be loaded. Plain text is shown below;
-            choose Original formatting to retry.
+            {t(
+              "Original formatting couldn't be loaded. Plain text is shown below; choose Original formatting to retry.",
+            )}
           </p>
         )}
         {mode === "original" && !failed ? (
           <iframe
             className="email-frame"
-            title="Original email content"
-            src={`/api/mail/${id}/content${images ? "?images=1" : ""}`}
+            title={t("Original email content")}
+            src={`/api/mail/${id}/content?lang=${language}${images ? "&images=1" : ""}`}
             sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
             referrerPolicy="no-referrer"
             onLoad={(event) => {
@@ -137,7 +143,9 @@ export function EmailContent({
         ) : (
           <div className="mail-body">
             {text ||
-              "This email has no text body. See the attachments or download the original email."}
+              t(
+                "This email has no text body. See the attachments or download the original email.",
+              )}
           </div>
         )}
       </section>
