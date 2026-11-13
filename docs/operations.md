@@ -19,9 +19,9 @@
 
 ## 部署
 
-已有部署：先 `pnpm config:pull <worker-name>`，再 `pnpm db:migrate`、`pnpm check`、`pnpm deploy`。部署脚本强制 production mode，始终重新构建当前配置。不要用测试模式产物部署。
+已有部署：先 `pnpm config:pull <worker-name>`，再 `pnpm db:migrate`、`pnpm check`、`pnpm run deploy`。部署脚本强制 production mode，始终重新构建当前配置。不要用测试模式产物部署。
 
-首次部署：从两个 JSON 模板准备忽略的 `.cloudflare/deployment.json` 和 `.dev.vars.deploy.json`。后者形如 `{"IMPORT_TOKEN":"<random-value>","MAIL_CONFIG":"<serialized-mail-config-json>"}`；使用 `pnpm deploy --secrets-file .dev.vars.deploy.json`。后续部署保留 Cloudflare 上已有 secret，不需要重新上传。cf dashboard 可更新具体邮件配置，更新后重新部署对应版本。
+首次部署：从两个 JSON 模板准备忽略的 `.cloudflare/deployment.json` 和 `.dev.vars.deploy.json`。后者形如 `{"IMPORT_TOKEN":"<random-value>","MAIL_CONFIG":"<serialized-mail-config-json>"}`；使用 `pnpm run deploy --secrets-file .dev.vars.deploy.json`。后续部署保留 Cloudflare 上已有 secret，不需要重新上传。cf dashboard 可更新具体邮件配置，更新后重新部署对应版本。
 
 添加 Email Routing 时先检查原有规则和 MX，不修改学校域名 MX、不替换其他收件人。部署只管理属于本 Worker 的精确收件规则。Workers 默认网址包含 Worker 与账户子域名，可用 `cf workers get --worker <name>` 查询。
 

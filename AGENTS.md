@@ -18,7 +18,7 @@ Monroe campus 三班的邮件档案、月度课程计划与每日提醒。`src/w
 
 ## 命令与质量门槛
 
-`pnpm dev` · `pnpm typecheck` · `pnpm lint` · `pnpm test` · `pnpm test:e2e` · `pnpm build` · `pnpm check`（全部检查）· `pnpm deploy`。
+`pnpm dev` · `pnpm typecheck` · `pnpm lint` · `pnpm test` · `pnpm test:e2e` · `pnpm build` · `pnpm check`（全部检查）· `pnpm run deploy`。
 交付说明实现、commits、实际检查与阻塞；分别报告本地与 GitHub Actions 状态，未执行的明确标注。push / PR CI 执行全部检查。
 
 ## 按任务读取
