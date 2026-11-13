@@ -82,6 +82,7 @@ test("automatically parses PDFs, preserves source differences and delivers a not
   expect(daily.classes[0].sourceNotes.join(" ")).toContain(
     "Calendar: wear blue",
   );
+  expect(daily.classes[0].weeklyFocus[0].focus[0].items).toContain("Letter Rr");
   expect(
     (await (await request.get(`/api/mail/${imported.id}`)).json()).class_ids,
   ).toContain("sunshine");

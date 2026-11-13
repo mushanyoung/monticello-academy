@@ -131,6 +131,7 @@ export interface ClassHighlight {
   alternatives?: LessonDay[];
   monthlyReminders?: string[];
   sourceNotes?: string[];
+  weeklyFocus?: z.infer<typeof weekSchema>[];
 }
 export interface Highlights {
   date: string;

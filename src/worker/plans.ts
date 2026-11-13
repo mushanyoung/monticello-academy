@@ -108,7 +108,13 @@ export function selectHighlight(
     alternatives:
       plan?.alternateDays?.filter((entry) => entry.date === date) || [],
     monthlyReminders: plan?.monthlyReminders || [],
-    sourceNotes: plan?.sourceNotes?.map((note) => note.description) || [],
+    sourceNotes: [
+      ...new Set(plan?.sourceNotes?.map((note) => note.description) || []),
+    ],
+    weeklyFocus:
+      plan?.weeks?.filter(
+        (week) => week.startDate <= date && week.endDate >= date,
+      ) || [],
   };
 }
 export async function highlights(db: D1Database, url: URL) {

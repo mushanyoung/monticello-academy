@@ -243,7 +243,7 @@ export function Plans({
         ) : (
           <Empty title="This month is still taking shape." icon="calendar">
             <p>
-              No confirmed lesson plans for{" "}
+              No lesson plans for{" "}
               {displayDate(`${selectedMonth}-01`, {
                 month: "long",
                 year: "numeric",

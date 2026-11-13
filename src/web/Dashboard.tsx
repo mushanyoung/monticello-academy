@@ -34,6 +34,33 @@ function DayCard({ highlight }: { highlight: ClassHighlight }) {
               {a.description}
             </p>
           ))}
+          {day.activities.length > 3 && (
+            <details className="day-note">
+              <summary>More activities ({day.activities.length - 3})</summary>
+              {day.activities.slice(3).map((activity) => (
+                <p key={`${activity.area}-${activity.description}`}>
+                  <strong>{activity.area}:</strong> {activity.description}
+                </p>
+              ))}
+            </details>
+          )}
+          {!!highlight.weeklyFocus?.length && (
+            <details className="day-note">
+              <summary>This week's focus</summary>
+              {highlight.weeklyFocus.map((week) => (
+                <div key={JSON.stringify(week)}>
+                  <p>
+                    <strong>{week.theme}</strong>
+                  </p>
+                  {week.focus.map((focus) => (
+                    <p key={JSON.stringify(focus)}>
+                      <strong>{focus.area}:</strong> {focus.items.join(" · ")}
+                    </p>
+                  ))}
+                </div>
+              ))}
+            </details>
+          )}
           {(day.bring.length > 0 || day.reminders.length > 0) && (
             <div className="reminders">
               <span className="small-label">BEFORE YOU HEAD OUT</span>
