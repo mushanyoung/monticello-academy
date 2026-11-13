@@ -2,7 +2,7 @@ import { Parser } from "htmlparser2";
 import { z } from "zod";
 import type { Language } from "./language";
 
-export const TRANSLATION_VERSION = "1";
+export const TRANSLATION_VERSION = "2";
 export const translatedSegmentsSchema = z
   .object({
     segments: z

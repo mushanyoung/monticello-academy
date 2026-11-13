@@ -13,7 +13,7 @@ export async function translationAdmin(request: Request, env: Env) {
   const path = new URL(request.url).pathname;
   if (path === "/api/admin/translations" && request.method === "GET") {
     const jobs = await env.DB.prepare(
-      "SELECT id,kind,entity_id,status,attempt,error_code,error_message,created_at,updated_at FROM translation_jobs ORDER BY created_at DESC LIMIT 300",
+      "SELECT id,kind,entity_id,translator_version,status,attempt,error_code,error_message,created_at,updated_at FROM translation_jobs ORDER BY created_at DESC LIMIT 300",
     ).all();
     const counts = await env.DB.prepare(
       "SELECT kind,status,count(*) count FROM translation_jobs GROUP BY kind,status",

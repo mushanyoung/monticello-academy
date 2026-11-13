@@ -18,7 +18,7 @@ export default defineConfig(({ mode }) => {
       exports: {
         TranslationWorkflow: workerExports.workflow({
           name: `${deployment.workerName}-translations`,
-          concurrency: { limit: 3 },
+          concurrency: { limit: 6 },
         }),
         LessonWorkflow: workerExports.workflow({
           name: `${deployment.workerName}-lessons`,

@@ -74,6 +74,32 @@ export async function enqueueTranslations(
       ),
     ),
   );
+  const obsolete = await env.DB.prepare(
+    `SELECT * FROM translation_jobs WHERE kind=? AND translator_version<>? AND entity_id IN (${ids.map(() => "?").join(",")}) AND status IN ('queued','running')`,
+  )
+    .bind(kind, TRANSLATION_VERSION, ...ids)
+    .all<TranslationJob>();
+  if (obsolete.results.length) {
+    await env.DB.batch(
+      obsolete.results.map((old) =>
+        env.DB.prepare(
+          "UPDATE translation_jobs SET status='superseded',updated_at=? WHERE id=? AND status IN ('queued','running')",
+        ).bind(now, old.id),
+      ),
+    );
+    for (const old of obsolete.results) {
+      try {
+        await (await env.TRANSLATIONS.get(old.workflow_id)).terminate();
+      } catch {
+        console.error(
+          JSON.stringify({
+            event: "obsolete_translation_stop_failed",
+            jobId: old.id,
+          }),
+        );
+      }
+    }
+  }
   for (const job of jobs)
     await dispatchTranslation(env, await translationJob(env, job.jobId));
   return jobs.map((job) => job.jobId);

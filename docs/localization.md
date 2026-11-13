@@ -23,3 +23,5 @@ TranslationWorkflow 使用已有 OPENAI_API_KEY 和 gpt-6.1-terra（low reasonin
 LESSON_CONFIG.enabled 同时控制自动课程解析和翻译；新邮件、管理导入、自动课程提取和管理课程写入都触发翻译。15 分钟补偿扫描补齐漏掉的入队和既存内容，翻译补扫不限邮件日期。开发环境关闭真实翻译；CI 仅替换 OpenAI HTTP 边界，D1、R2、Workflows 和通知绑定均使用真实本地运行时。
 
 GET 邮件、HTML、课程与提醒 API 接受 `lang=zh|en`；未指定时按 Accept-Language 权重匹配，无匹配则中文。客户端请求始终携带当前选择的 lang。管理翻译端点与历史回填操作见 docs/operations.md。实际邮件与译文、截图只能保存在 Git 忽略的私有目录。
+
+翻译指令变更递增 TRANSLATION_VERSION。版本 2 明确区分数字原值与月份／星期名称：数字保持，名称译成中文；班名与 UI 一致，英语教学目标保留原始字母、词汇和拼读形式。发布还要求同一来源不存在更新任务，防止旧翻译器覆盖新版本；入队新版本时停止该实体仍运行的旧版任务并标为 superseded。历史语言版本在更新完成前仍可查看。

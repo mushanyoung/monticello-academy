@@ -81,7 +81,7 @@ export async function publishTranslation(
       const document = JSON.stringify(planSchema.parse(translated));
       statements.push(
         env.DB.prepare(`INSERT INTO plan_localizations(plan_id,language,source_document,document,updated_at)
-        SELECT id,?,?,?,? FROM lesson_plans WHERE id=? AND document=?
+        SELECT id,?,?,?,? FROM lesson_plans WHERE id=? AND document=? AND NOT EXISTS(SELECT 1 FROM translation_jobs newer WHERE newer.kind='plan' AND newer.entity_id=? AND newer.source_document=? AND newer.created_at>?)
         ON CONFLICT(plan_id,language) DO UPDATE SET source_document=excluded.source_document,document=excluded.document,updated_at=excluded.updated_at`).bind(
           language,
           job.source_document,
@@ -89,6 +89,9 @@ export async function publishTranslation(
           now,
           job.entity_id,
           job.source_document,
+          job.entity_id,
+          job.source_document,
+          job.created_at,
         ),
       );
     } else {
@@ -107,7 +110,7 @@ export async function publishTranslation(
         .toLowerCase();
       statements.push(
         env.DB.prepare(`INSERT INTO mail_localizations(message_id,language,source_document,subject,body_text,html_key,attachments,search_text,updated_at)
-        SELECT id,?,?,?,?,?,?,?,? FROM messages WHERE id=? AND raw_key=?
+        SELECT id,?,?,?,?,?,?,?,? FROM messages WHERE id=? AND raw_key=? AND NOT EXISTS(SELECT 1 FROM translation_jobs newer WHERE newer.kind='mail' AND newer.entity_id=? AND newer.source_document=? AND newer.created_at>?)
         ON CONFLICT(message_id,language) DO UPDATE SET source_document=excluded.source_document,subject=excluded.subject,body_text=excluded.body_text,html_key=excluded.html_key,attachments=excluded.attachments,search_text=excluded.search_text,updated_at=excluded.updated_at`).bind(
           language,
           job.source_document,
@@ -119,6 +122,9 @@ export async function publishTranslation(
           now,
           job.entity_id,
           job.source_document,
+          job.entity_id,
+          job.source_document,
+          job.created_at,
         ),
       );
     }
@@ -128,7 +134,7 @@ export async function publishTranslation(
     ? "completed"
     : "superseded";
   await env.DB.prepare(
-    "UPDATE translation_jobs SET status=?,updated_at=? WHERE id=? AND attempt=?",
+    "UPDATE translation_jobs SET status=?,updated_at=? WHERE id=? AND attempt=? AND status='running'",
   )
     .bind(status, now, job.id, job.attempt)
     .run();
