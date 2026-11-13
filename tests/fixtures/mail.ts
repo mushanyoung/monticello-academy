@@ -1,7 +1,9 @@
-import { CLASSES } from "../../src/shared/classes";
+import example from "../../config/mail.example.json" with { type: "json" };
+import { parseMailConfig } from "../../src/shared/mail-config";
+export const mailConfig = parseMailConfig(JSON.stringify(example));
 export function fixtureMail(
   key: string,
-  recipient: string = CLASSES[0].email,
+  recipient: string = mailConfig.classEmails.sunshine,
   date = "Fri, 13 Nov 2026 09:00:00 -0800",
 ) {
   return [

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { CLASSES } from "../../src/shared/classes";
-import { fixtureMail } from "../fixtures/mail";
+import { fixtureMail, mailConfig } from "../fixtures/mail";
 
 const headers = {
   Authorization: "Bearer local-e2e-import-token",
@@ -12,7 +12,10 @@ test("archives concurrent list deliveries once and searches/downloads attachment
   const key = `delivery-${crypto.randomUUID()}`;
   const results = await Promise.all(
     CLASSES.map((c) =>
-      request.post("/api/import", { headers, data: fixtureMail(key, c.email) }),
+      request.post("/api/import", {
+        headers,
+        data: fixtureMail(key, mailConfig.classEmails[c.id]),
+      }),
     ),
   );
   for (const result of results) expect(result.status()).toBe(201);
@@ -77,7 +80,11 @@ test("enforces imports, validates input, orders dates, and treats search literal
       (
         await request.post("/api/import", {
           headers,
-          data: fixtureMail(`${key}-${suffix}`, CLASSES[0].email, date),
+          data: fixtureMail(
+            `${key}-${suffix}`,
+            mailConfig.classEmails.sunshine,
+            date,
+          ),
         })
       ).status(),
     ).toBe(201);
@@ -117,4 +124,14 @@ test("receives real email events and rejects unauthorized envelope senders", asy
     await request.get(`/api/mail?q=${key}-rejected`)
   ).json();
   expect(absent.total).toBe(0);
+});
+
+test("exposes only the public inbound address, never the sender allowlist or class email mapping", async ({
+  request,
+}) => {
+  const site = await (await request.get("/api/site")).json();
+  expect(site).toEqual({ inboundAddress: mailConfig.inboundAddress });
+  const stats = await (await request.get("/api/stats")).json();
+  for (const classroom of stats.classes)
+    expect(classroom).not.toHaveProperty("email");
 });

@@ -1,4 +1,5 @@
 import { isClassId } from "../shared/classes";
+import { parseMailConfig } from "../shared/mail-config";
 import { isAdmin } from "./auth";
 import { HttpError, MAX_EMAIL_BYTES, readLimited } from "./errors";
 import { ingestMail } from "./mail";
@@ -8,6 +9,10 @@ import { detail, listMail, stats } from "./queries";
 async function route(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname;
+  if (path === "/api/site")
+    return Response.json({
+      inboundAddress: parseMailConfig(env.MAIL_CONFIG).inboundAddress,
+    });
   if (path === "/api/health") return Response.json({ status: "ok" });
   if (path === "/api/import" && request.method === "POST") {
     if (!(await isAdmin(request, env)))
@@ -122,16 +127,19 @@ export default {
       return;
     }
     const sender = message.from.toLowerCase();
-    const allow = env.ALLOWED_FORWARDERS.split(",").map((s) =>
-      s.trim().toLowerCase(),
-    );
-    if (!sender.endsWith("@school.example.com") && !allow.includes(sender)) {
+    const config = parseMailConfig(env.MAIL_CONFIG);
+    const allow = config.allowedForwarders.map((s) => s.toLowerCase());
+    const domain = sender.slice(sender.lastIndexOf("@") + 1);
+    if (
+      !config.allowedSenderDomains.includes(domain) &&
+      !allow.includes(sender)
+    ) {
       message.setReject(
         "Sender is not an approved school sender or forwarder.",
       );
       return;
     }
-    if (message.to.toLowerCase() !== env.INBOUND_ADDRESS) {
+    if (message.to.toLowerCase() !== config.inboundAddress.toLowerCase()) {
       message.setReject("Unknown archive address.");
       return;
     }

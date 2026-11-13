@@ -1,23 +1,35 @@
 import { describe, expect, it } from "vitest";
-import { CLASSES, identifyClasses } from "../../src/shared/classes";
+import { identifyClasses } from "../../src/shared/classes";
 import { readLimited } from "../../src/worker/errors";
-import { parseMail, plainText } from "../../src/worker/mail";
-import { fixtureMail } from "../fixtures/mail";
+import {
+  parseMail as parseConfiguredMail,
+  plainText,
+} from "../../src/worker/mail";
+import { fixtureMail, mailConfig } from "../fixtures/mail";
 
+const parseMail = (raw: Uint8Array) => parseConfiguredMail(raw, mailConfig);
+const classesFrom = (text: string) =>
+  identifyClasses(text, mailConfig.classEmails);
 const bytes = (s: string) => new TextEncoder().encode(s);
 describe("mail identity and recipients", () => {
   it("recognizes exact recipients and List-ID without matching spoofed suffixes", () => {
     expect(
-      identifyClasses(`${CLASSES[0].email.toUpperCase()}, ${CLASSES[1].email}`),
+      classesFrom(
+        `${mailConfig.classEmails.sunshine.toUpperCase()}, ${mailConfig.classEmails.guppy}`,
+      ),
     ).toEqual(["sunshine", "guppy"]);
-    expect(identifyClasses(`<${CLASSES[2].email.replace("@", ".")}>`)).toEqual([
-      "twos",
-    ]);
-    expect(identifyClasses(`${CLASSES[0].email}.evil.org`)).toEqual([]);
+    expect(
+      classesFrom(`<${mailConfig.classEmails.twos.replace("@", ".")}>`),
+    ).toEqual(["twos"]);
+    expect(classesFrom(`${mailConfig.classEmails.sunshine}.evil.org`)).toEqual(
+      [],
+    );
   });
   it("keeps identity across list deliveries and decodes attachments", async () => {
     const a = await parseMail(bytes(fixtureMail("same")));
-    const b = await parseMail(bytes(fixtureMail("same", CLASSES[1].email)));
+    const b = await parseMail(
+      bytes(fixtureMail("same", mailConfig.classEmails.guppy)),
+    );
     expect(a.messageKey).toBe(b.messageKey);
     expect(a.contentHash).toBe(b.contentHash);
     expect(b.classes).toEqual(["guppy"]);
@@ -27,7 +39,12 @@ describe("mail identity and recipients", () => {
     const raw = fixtureMail("missing").replace(/Message-ID:[^\r]+\r\n/, "");
     const a = await parseMail(bytes(raw));
     const b = await parseMail(
-      bytes(raw.replace(CLASSES[0].email, CLASSES[2].email)),
+      bytes(
+        raw.replace(
+          mailConfig.classEmails.sunshine,
+          mailConfig.classEmails.twos,
+        ),
+      ),
     );
     expect(a.messageKey).toBe(b.messageKey);
     const next = await parseMail(bytes(raw.replace("13 Nov", "14 Nov")));
@@ -36,7 +53,7 @@ describe("mail identity and recipients", () => {
   it("unwraps an original email attachment to preserve its identity", async () => {
     const original = fixtureMail("forwarded");
     const wrapper = [
-      "From: 维护者 <parent@example.com>",
+      "From: Parent <parent@example.com>",
       "To: notebook@example.com",
       "Subject: Fwd: archive",
       "MIME-Version: 1.0",

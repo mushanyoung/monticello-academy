@@ -97,6 +97,7 @@ export function Dashboard({
   selected: string;
   tomorrow: boolean;
 }) {
+  const site = useApi<{ inboundAddress: string }>("/api/site");
   const [today, setToday] = useState(campusDate());
   useEffect(() => {
     const update = () => setToday(campusDate());
@@ -191,8 +192,14 @@ export function Dashboard({
           <h3>A note for the grown-ups</h3>
           <p>
             One little home for all three classrooms. Forward school updates to{" "}
-            <a href="mailto:notebook@example.com">notebook@example.com</a> to keep
-            the notebook growing.
+            {site.data ? (
+              <a href={`mailto:${site.data.inboundAddress}`}>
+                {site.data.inboundAddress}
+              </a>
+            ) : (
+              "your configured archive address"
+            )}{" "}
+            to keep the notebook growing.
           </p>
         </div>
         <span className="handwritten">

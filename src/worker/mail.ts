@@ -1,6 +1,7 @@
 import { convert } from "html-to-text";
 import PostalMime, { type Email } from "postal-mime";
 import { type ClassId, identifyClasses } from "../shared/classes";
+import { type MailConfig, parseMailConfig } from "../shared/mail-config";
 import { HttpError } from "./errors";
 
 const MAX_TEXT = 100_000;
@@ -42,6 +43,7 @@ function addressHeaders(mail: Email): string {
 }
 export async function parseMail(
   raw: Uint8Array,
+  config: MailConfig,
   recipient = "",
   extraClasses: ClassId[] = [],
   depth = 0,
@@ -58,8 +60,12 @@ export async function parseMail(
       typeof content === "string"
         ? new TextEncoder().encode(content)
         : Uint8Array.from(new Uint8Array(content)),
+      config,
       recipient,
-      [...extraClasses, ...identifyClasses(addressHeaders(mail))],
+      [
+        ...extraClasses,
+        ...identifyClasses(addressHeaders(mail), config.classEmails),
+      ],
       depth + 1,
     );
   }
@@ -77,6 +83,7 @@ export async function parseMail(
       ...extraClasses,
       ...identifyClasses(
         `${recipient}\n${addressHeaders(mail)}\n${forwardedRecipients}`,
+        config.classEmails,
       ),
     ]),
   ];
@@ -144,7 +151,12 @@ export async function ingestMail(
   recipient = "",
   classes: ClassId[] = [],
 ) {
-  const parsed = await parseMail(raw, recipient, classes);
+  const parsed = await parseMail(
+    raw,
+    parseMailConfig(env.MAIL_CONFIG),
+    recipient,
+    classes,
+  );
   const { mail, body, attachments, sender, subject, contentHash, messageKey } =
     parsed;
   const candidateId = await sha256(`mail:${messageKey}`);
