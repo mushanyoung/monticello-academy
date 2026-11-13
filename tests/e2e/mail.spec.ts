@@ -93,3 +93,28 @@ test("enforces imports, validates input, orders dates, and treats search literal
   const literal = await (await request.get("/api/mail?q=%25")).json();
   expect(literal.total).toBe(0);
 });
+
+test("receives real email events and rejects unauthorized envelope senders", async ({
+  request,
+}) => {
+  const key = `email-event-${crypto.randomUUID()}`;
+  const query = new URLSearchParams({
+    from: "teacher@school.example.com",
+    to: "notebook@example.com",
+  });
+  const accepted = await request.post(`/cdn-cgi/local/email?${query}`, {
+    data: fixtureMail(key),
+  });
+  expect(accepted.status()).toBe(200);
+  const found = await (await request.get(`/api/mail?q=${key}`)).json();
+  expect(found.total).toBe(1);
+  query.set("from", "outsider@example.com");
+  const rejected = await request.post(`/cdn-cgi/local/email?${query}`, {
+    data: fixtureMail(`${key}-rejected`),
+  });
+  expect(rejected.status()).toBe(400);
+  const absent = await (
+    await request.get(`/api/mail?q=${key}-rejected`)
+  ).json();
+  expect(absent.total).toBe(0);
+});

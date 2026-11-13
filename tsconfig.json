@@ -16,9 +16,10 @@
   "include": [
     "src/worker",
     "src/shared",
-    "tests",
     "scripts",
     "*.ts",
-    ".cloudflare/types"
+    ".cloudflare/types",
+    "tests/unit",
+    "tests/fixtures"
   ]
 }

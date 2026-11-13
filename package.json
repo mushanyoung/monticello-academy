@@ -7,11 +7,11 @@
     "build": "cf build",
     "deploy": "cf deploy",
     "types": "cf workers types",
-    "typecheck": "pnpm types && tsc --noEmit && tsc -p tsconfig.web.json --noEmit",
+    "typecheck": "pnpm types && tsc --noEmit && tsc -p tsconfig.web.json --noEmit && tsc -p tsconfig.e2e.json --noEmit",
     "format": "biome format --write .",
     "lint": "biome check --error-on-warnings .",
     "test": "vitest run",
-    "test:e2e": "playwright test",
+    "test:e2e": "env -u NO_COLOR playwright test",
     "check": "pnpm lint && pnpm typecheck && pnpm test && pnpm test:e2e && pnpm build",
     "db:migrate:local": "cf d1 migrations apply 00000000-0000-4000-8000-000000000001 --local",
     "db:migrate": "cf d1 migrations apply 00000000-0000-4000-8000-000000000001"

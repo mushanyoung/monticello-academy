@@ -7,3 +7,5 @@ Playwright 在桌面和手机尺寸验证实际用户流程；测试邮件仅为
 统一命令 `pnpm check`。失败诊断见 `test-results/` 与 `playwright-report/`，CI 上传保留 14 天。分别说明本地与远端 Actions 结果。
 
 已覆盖原始 ID 与无 ID 去重、嵌套 .eml、精确列表识别、HTML 转文本、输入上限、并发三班投递、实际附件下载、文本附件搜索、字面百分号查询、排序、无效筛选与导入鉴权。API 测试通过 cf dev 运行，使用生产相同的 D1 SQL 和 R2 binding。
+
+当前包含 10 个 unit cases 和桌面／手机各 8 个 e2e cases：今天／明天提醒、月计划与原始邮件跳转、实际下载、筛选搜索、空结果、加载失败重试、无横向溢出；以及通过 `/cdn-cgi/local/email` 调用真实 email handler 的接收／拒收路径。e2e 开始仅清理 `.cloudflare/test-state`，不会清理开发或远端数据库。转发模拟的 To 与信封地址不同为正常现象，拒收用例的运行时日志为预期诊断。
