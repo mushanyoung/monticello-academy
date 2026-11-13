@@ -26,6 +26,10 @@ export default defineConfig(({ mode }) => {
           mode === "test"
             ? bindings.text("local-e2e-import-token")
             : bindings.secret(),
+        OPENAI_API_KEY:
+          mode === "test" || mode === "development"
+            ? bindings.text("")
+            : bindings.secret(),
       },
       triggers: deployment.emailRoutingAddresses.length
         ? [triggers.email({ addresses: deployment.emailRoutingAddresses })]
