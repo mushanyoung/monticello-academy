@@ -204,3 +204,41 @@ test("protects operations and raw model results with admin authentication", asyn
     ).status(),
   ).toBe(422);
 });
+
+test("processes actual email events and ignores unrelated PDFs without a false alert", async ({
+  request,
+}) => {
+  const key = crypto.randomUUID();
+  const filename = `registration-${key}.pdf`;
+  const delivered = await request.post(
+    `/cdn-cgi/local/email?${new URLSearchParams({ from: "teacher@school.example.com", to: "notebook@example.com" })}`,
+    { data: fixtureLessonMail(key, filename) },
+  );
+  expect(delivered.status()).toBe(200);
+  const mail = await (await request.get(`/api/mail?q=${key}`)).json();
+  expect(mail.total).toBe(1);
+  const detail = await (
+    await request.get(`/api/mail/${mail.items[0].id}`)
+  ).json();
+  const attachmentId = detail.attachments[0].id;
+  await expect
+    .poll(
+      async () =>
+        (await jobs(request)).jobs.find(
+          (job) => job.attachment_id === attachmentId,
+        )?.status,
+      { timeout: 20000 },
+    )
+    .toBe("ignored");
+  const job = (await jobs(request)).jobs.find(
+    (entry) => entry.attachment_id === attachmentId,
+  );
+  expect(
+    (await request.post("/api/admin/lessons/reconcile", { headers })).status(),
+  ).toBe(200);
+  const state = await jobs(request);
+  expect(state.jobs.find((entry) => entry.id === job?.id)?.status).toBe(
+    "ignored",
+  );
+  expect(state.alerts.filter((alert) => alert.job_id === job?.id)).toEqual([]);
+});

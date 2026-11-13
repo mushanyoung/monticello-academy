@@ -23,7 +23,7 @@
 
 已有部署：先 `pnpm config:pull <worker-name>`，再 `pnpm db:migrate`、`pnpm check`、`pnpm run deploy`。部署脚本强制 production mode，始终重新构建当前配置。不要用测试模式产物部署。
 
-首次部署：从两个 JSON 模板准备忽略的 `.cloudflare/deployment.json` 和 `.dev.vars.deploy.json`。后者形如 `{"IMPORT_TOKEN":"<random-value>","MAIL_CONFIG":"<serialized-mail-config-json>"}`；使用 `pnpm run deploy --secrets-file .dev.vars.deploy.json`。后续部署保留 Cloudflare 上已有 secret，不需要重新上传。cf dashboard 可更新具体邮件配置，更新后重新部署对应版本。
+首次部署：从三个 JSON 模板准备忽略的 `.cloudflare/deployment.json` 和 `.dev.vars.deploy.json`。后者形如 `{"IMPORT_TOKEN":"<random-value>","MAIL_CONFIG":"<serialized-mail-config-json>","LESSON_CONFIG":"<serialized-lessons-config-json>"}`；使用 `pnpm run deploy --secrets-file .dev.vars.deploy.json`。后续部署保留 Cloudflare 上已有 secret，不需要重新上传。cf dashboard 可更新具体邮件配置，更新后重新部署对应版本。
 
 导入或轮换 OpenAI key：在权限为 0700 的临时目录中创建 0600 的 JSON 文件，内容形如 `{"OPENAI_API_KEY":"<key>"}`，通过 `pnpm run deploy --secrets-file <temporary-json-path>` 上传并部署。用程序从密钥文件读取内容，不能将密钥放入命令参数、日志或 Git；操作完成后删除临时 JSON。只传入本次需要更新的 secret，其余值由 Cloudflare 保留。验证部署版本中的 `OPENAI_API_KEY` 类型为 `secret_text`，只检查绑定名称和类型。配置密钥本身不会启用课程提取；模型接入条件见 `docs/lesson-plans.md`。
 
@@ -58,6 +58,7 @@ cf 配置声明 LessonWorkflow、LESSONS workflow binding、LESSON_EMAIL sendEma
 - GET /api/admin/lessons：最近 200 个 job 和 100 条通知状态，不返回通知地址或密钥。
 - POST /api/admin/lessons：JSON 包含 attachmentIds（1–30 个已归档 PDF 的 64 位十六进制 ID）、notify（默认 true；历史回填可 false）。
 - GET /api/admin/lessons/:id/result：私有模型结果供排障，不得提交到仓库。
+- POST /api/admin/lessons/:id/index：从已保存结果重建课程 PDF 搜索索引，不调用模型。
 - POST /api/admin/lessons/:id/retry：仅重试 failed job，递增 attempt 并创建新 Workflow。不存在批准或确认端点。
 - POST /api/admin/lessons/reconcile：立即执行补扫、失效任务检测及通知重试。
 - POST /api/admin/lessons/notification-test：向固定收件人发送测试通知，返回 sent/pending 和提供商 message ID。sent 表示 Cloudflare 接受发送，不代表收件箱已读取。

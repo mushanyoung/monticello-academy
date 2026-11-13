@@ -100,7 +100,7 @@ async function dispatchLesson(env: Env, job: LessonJob) {
           "The background workflow stopped before saving its result.",
         );
     } catch {
-      if (Date.now() - Date.parse(job.created_at) > 60 * 60_000)
+      if (Date.now() - Date.parse(job.updated_at) > 60 * 60_000)
         await failLesson(
           env,
           job,
@@ -139,11 +139,16 @@ export async function failLesson(
   code: string,
   message: string,
 ) {
-  await env.DB.prepare(
+  const updated = await env.DB.prepare(
     "UPDATE lesson_jobs SET status='failed',error_code=?,error_message=?,updated_at=? WHERE id=? AND attempt=? AND status IN ('queued','running')",
   )
     .bind(code, message, new Date().toISOString(), job.id, job.attempt)
     .run();
+  if (!updated.meta.changes) {
+    const current = await getLessonJob(env, job.id);
+    // A stale dispatcher must not report failure after another worker has published.
+    if (current.status !== "failed" || current.attempt !== job.attempt) return;
+  }
   await notifyLessonProblem(
     env,
     job,
