@@ -2,7 +2,7 @@
 
 ## 配置分工
 
-公开仓库不含真实账户、邮箱、资源 ID 或部署网址。
+公开源码和配置不含真实账户、邮箱、资源 ID 或部署网址；经用户授权公开的 Git 身份元数据见 `docs/public-repository.md`。
 
 - `config/deployment.example.json`：Worker 名称、D1 ID、R2 bucket、收件路由地址的模板。
 - `config/mail.example.json`：统一收件地址、允许转发人、允许的发件域名、三个班邮箱映射模板。
@@ -36,6 +36,8 @@
 建议先发 2–3 封核对班级、日期和附件，再每批 5–10 封；每批 `.eml` 附件合计尽量不超过 10 MB，为 MIME 编码留余量。硬限制为整封入站邮件 20 MiB、每封最多 40 个附件、拆分后最多 20 封归档记录、最多三层转发嵌套。若外层还附有普通文件，也会额外保存外层邮件并计入批次限制。Gmail 超过附件上限会改用 Google Drive 链接，接收端不会自动下载这些链接，应改为更小批次。遇到退信按原因缩小批次或修复原件后重发。
 
 普通转发仍会归档，未识别的班级显示在 All classrooms。学校邮件列表或个人邮箱的自动转发仍需在原邮件服务中启用；不能通过 Worker 控制外部邮箱。
+
+Gmail filter 的转发动作只作用于创建后的新邮件；“同时应用于匹配的会话”不会补转旧邮件，历史邮件仍需 `.eml` 导入，参见 [Google filter 说明](https://support.google.com/mail/answer/6579?hl=zh-Hans)。仅自动转发三个班的匹配邮件，不开启全邮箱转发。Gmail 新增转发地址前会发送验证邮件；默认学校/家长白名单并不包含 Google 验证发件人，验证收信需单独安排私密路径，不能把确认链接或验证码归档到公开网站。
 
 POST `/api/import` 使用 Bearer IMPORT_TOKEN，body 为原始 .eml；`?class=sunshine|guppy|twos` 可补充班级。POST `/api/plans` 使用同一管理密钥与课程 JSON。密钥不要放到浏览器或命令行参数里。
 
