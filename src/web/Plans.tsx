@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { CLASSES } from "../shared/classes";
 import { campusDate } from "../shared/dates";
 import type { StoredPlan } from "../shared/plans";
@@ -14,66 +15,86 @@ export function Plans({
   selected: string;
   month?: string;
 }) {
+  const { t } = useI18n();
+  const available = useApi<{ months: string[] }>("/api/plan-months");
+  const months = available.data?.months;
+  const currentMonth = campusDate().slice(0, 7);
+  const selectedMonth =
+    month && months?.includes(month)
+      ? month
+      : months?.includes(currentMonth)
+        ? currentMonth
+        : months?.[0];
+  useEffect(() => {
+    if (selectedMonth && month !== selectedMonth)
+      window.history.replaceState(
+        window.history.state,
+        "",
+        href({ view: "plans", class: selected, month: selectedMonth }),
+      );
+  }, [selectedMonth, month, selected]);
+  return (
+    <>
+      <h1 className="sr-only">{t("Lesson plans")}</h1>
+      <ClassFilters
+        view="plans"
+        selected={selected}
+        month={selectedMonth || month}
+      />
+      {!months ? (
+        <LoadState error={available.error} retry={available.retry} />
+      ) : selectedMonth ? (
+        <MonthlyPlans
+          key={`${selected}:${selectedMonth}`}
+          selected={selected}
+          selectedMonth={selectedMonth}
+          months={months}
+        />
+      ) : (
+        <Empty
+          title={t("No lesson plans have been added yet.")}
+          icon="calendar"
+        >
+          <a className="button" href={href({ view: "mail", class: selected })}>
+            {t("Explore classroom mail")} <Icon name="arrow" size={18} />
+          </a>
+        </Empty>
+      )}
+    </>
+  );
+}
+function MonthlyPlans({
+  selected,
+  selectedMonth,
+  months,
+}: {
+  selected: string;
+  selectedMonth: string;
+  months: string[];
+}) {
   const { t, displayDate } = useI18n();
-  const selectedMonth = month || campusDate().slice(0, 7);
   const plans = useApi<{ items: StoredPlan[] }>(
     `/api/plans?${new URLSearchParams({ class: selected, month: selectedMonth })}`,
   );
   return (
     <>
-      <h1 className="sr-only">{t("Lesson plans")}</h1>
-      <div className="plans-toolbar">
-        <ClassFilters view="plans" selected={selected} month={selectedMonth} />
-        <form
-          className="month-form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            const data = new FormData(event.currentTarget);
-            const year = String(Number(data.get("year"))).padStart(4, "0");
-            window.location.assign(
-              href({
-                view: "plans",
-                class: selected,
-                month: `${year}-${String(data.get("month"))}`,
-              }),
-            );
-          }}
-        >
-          <div className="month-field">
-            <label htmlFor="year">{t("Year")}</label>
-            <input
-              id="year"
-              name="year"
-              type="number"
-              inputMode="numeric"
-              min={1}
-              max={9999}
-              step={1}
-              defaultValue={selectedMonth.slice(0, 4)}
-              required
-            />
-          </div>
-          <div className="month-field">
-            <label htmlFor="month">{t("Month")}</label>
-            <select
-              id="month"
-              name="month"
-              defaultValue={selectedMonth.slice(5, 7)}
-            >
-              {Array.from({ length: 12 }, (_, index) =>
-                String(index + 1).padStart(2, "0"),
-              ).map((value) => (
-                <option key={value} value={value}>
-                  {displayDate(`2000-${value}-01`, { month: "short" })}
-                </option>
-              ))}
-            </select>
-          </div>
-          <button className="button" type="submit">
-            {t("Go")} <Icon name="arrow" size={16} />
-          </button>
-        </form>
-      </div>
+      <form className="month-form" action="/" method="get">
+        <input type="hidden" name="view" value="plans" />
+        <input type="hidden" name="class" value={selected} />
+        <div className="month-field">
+          <label htmlFor="month">{t("Month")}</label>
+          <select id="month" name="month" defaultValue={selectedMonth}>
+            {months.map((value) => (
+              <option key={value} value={value}>
+                {displayDate(`${value}-01`, { year: "numeric", month: "long" })}
+              </option>
+            ))}
+          </select>
+        </div>
+        <button className="button" type="submit">
+          {t("Go")} <Icon name="arrow" size={16} />
+        </button>
+      </form>
       {plans.data ? (
         plans.data.items.length ? (
           <div className="plan-list">

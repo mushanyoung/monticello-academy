@@ -52,7 +52,7 @@ export const messages = {
   "← Previous": "← 上一页",
   "Next →": "下一页 →",
   Month: "月份",
-  Year: "年份",
+  "No lesson plans have been added yet.": "尚未入库任何课程计划。",
   Go: "查看",
   "Partial month · These dates appear in an adjacent month's PDF.":
     "部分月份 · 这些日期来自相邻月份的课程 PDF。",

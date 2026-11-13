@@ -78,6 +78,14 @@ export async function savePlan(db: D1Database, input: unknown) {
   ]);
   return { id };
 }
+export async function listPlanMonths(db: D1Database) {
+  const rows = await db
+    .prepare(
+      "SELECT DISTINCT month FROM lesson_plans WHERE status='published' ORDER BY month DESC",
+    )
+    .all<{ month: string }>();
+  return { months: rows.results.map((row) => row.month) };
+}
 export async function listPlans(db: D1Database, url: URL) {
   const requested = url.searchParams.get("lang");
   const language = isLanguage(requested) ? requested : "en";

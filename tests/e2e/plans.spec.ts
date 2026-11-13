@@ -1,8 +1,131 @@
 import { expect, test } from "@playwright/test";
-import { fixtureMail } from "../fixtures/mail";
+import { campusDate } from "../../src/shared/dates";
+import type { StoredPlan } from "../../src/shared/plans";
+import { fixtureMail, mailConfig } from "../fixtures/mail";
 import { fixturePlan } from "../fixtures/plan";
 
 const headers = { Authorization: "Bearer local-e2e-import-token" };
+test("chooses only archived months across classrooms and retains filters and shareable dates", async ({
+  page,
+  request,
+}) => {
+  const { id } = await (
+    await request.post("/api/import", {
+      headers,
+      data: fixtureMail(
+        `month-choices-${crypto.randomUUID()}`,
+        `${mailConfig.classEmails.sunshine}, ${mailConfig.classEmails.guppy}`,
+      ),
+    })
+  ).json();
+  const currentMonth = campusDate().slice(0, 7);
+  const fixtures = [
+    fixturePlan(id, `${currentMonth}-10`),
+    { ...fixturePlan(id, "2050-12-10"), sourceKind: "carryover" },
+    { ...fixturePlan(id, "2051-02-10"), title: "Sunshine February archive" },
+    {
+      ...fixturePlan(id, "2051-02-10"),
+      classId: "guppy",
+      title: "Guppy February archive",
+    },
+    { ...fixturePlan(id, "2051-09-10"), classId: "guppy" },
+  ];
+  for (const plan of fixtures)
+    expect(
+      (await request.post("/api/plans", { headers, data: plan })).status(),
+    ).toBe(201);
+  const allPlans: { items: StoredPlan[] } = await (
+    await request.get("/api/plans")
+  ).json();
+  const months = [...new Set(allPlans.items.map((plan) => plan.month))]
+    .sort()
+    .reverse();
+  expect(await (await request.get("/api/plan-months")).json()).toEqual({
+    months,
+  });
+  expect(months).toEqual(
+    expect.arrayContaining([currentMonth, "2050-12", "2051-02", "2051-09"]),
+  );
+  await page.goto("/?view=plans&class=sunshine");
+  await expect(page.getByLabel("Month", { exact: true })).toHaveValue(
+    currentMonth,
+  );
+  expect(
+    await page
+      .locator("#month option")
+      .evaluateAll((options) =>
+        options.map((option) => option.getAttribute("value")),
+      ),
+  ).toEqual(months);
+  await expect(
+    page.locator('.month-form input:not([type="hidden"])'),
+  ).toHaveCount(0);
+  await page.getByLabel("Month", { exact: true }).selectOption("2051-02");
+  await page.getByRole("button", { name: "Go", exact: true }).click();
+  await expect(page).toHaveURL(/class=sunshine&month=2051-02/);
+  await expect(
+    page.getByRole("heading", { name: "Sunshine February archive" }),
+  ).toBeVisible();
+  const filters = page.getByRole("navigation", { name: "Filter by classroom" });
+  await filters.getByRole("link", { name: "Guppy Room", exact: true }).click();
+  await expect(page.getByLabel("Month", { exact: true })).toHaveValue(
+    "2051-02",
+  );
+  await expect(
+    page.getByRole("heading", { name: "Guppy February archive" }),
+  ).toBeVisible();
+  await page.getByLabel("Month", { exact: true }).selectOption("2051-09");
+  await page.getByRole("button", { name: "Go", exact: true }).click();
+  await filters
+    .getByRole("link", { name: "Sunshine Room", exact: true })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "This month is still taking shape." }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Month", { exact: true })).toHaveValue(
+    "2051-09",
+  );
+  await expect(page.locator("#month option")).toHaveCount(months.length);
+  await page.clock.setFixedTime(new Date("2099-01-10T12:00:00Z"));
+  for (const path of ["/?view=plans", "/?view=plans&month=2080-01"]) {
+    await page.goto(path);
+    await expect(page.getByLabel("Month", { exact: true })).toHaveValue(
+      months[0] || "",
+    );
+    expect(new URL(page.url()).searchParams.get("month")).toBe(months[0]);
+  }
+});
+test("retries month loading and shows an honest empty archive in both languages", async ({
+  page,
+}) => {
+  let failed = false;
+  await page.route("**/api/plan-months?*", (route) => {
+    if (!failed) {
+      failed = true;
+      return route.fulfill({
+        status: 503,
+        json: { error: "Temporarily unavailable" },
+      });
+    }
+    return route.fulfill({ json: { months: [] } });
+  });
+  await page.goto("/?view=plans");
+  await expect(page.getByRole("alert")).toBeVisible();
+  await page.getByRole("button", { name: "Try again" }).click();
+  await expect(
+    page.getByRole("heading", { name: "No lesson plans have been added yet." }),
+  ).toBeVisible();
+  await expect(page.getByRole("combobox")).toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: "Explore classroom mail" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "中文", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "尚未入库任何课程计划。" }),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "查看班级邮件" })).toBeVisible();
+  await expect(page.locator(".loading-dot")).toHaveCount(0);
+});
 test("publishes source-linked monthly plans and updates daily highlights", async ({
   request,
 }) => {

@@ -963,12 +963,9 @@ h2 {
 .pagination span {
   color: #a28da7;
 }
-.plans-toolbar {
-  margin-bottom: 25px;
-}
 .month-form {
   display: grid;
-  grid-template-columns: 110px 110px max-content;
+  grid-template-columns: minmax(0, 220px) max-content;
   align-items: end;
   gap: 11px;
   margin: 12px 0 25px;
@@ -982,7 +979,7 @@ h2 {
   font-size: var(--text-body);
   color: #957d9d;
 }
-.month-form :is(input, select) {
+.month-form select {
   width: 100%;
   min-width: 0;
   height: 44px;
@@ -1452,7 +1449,7 @@ h2 {
     width: 32px;
   }
   .month-form {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) max-content;
+    grid-template-columns: minmax(0, 1fr) max-content;
     gap: 9px;
   }
   .plan {

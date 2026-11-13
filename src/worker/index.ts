@@ -8,7 +8,7 @@ import { enqueueMessageLessons, reconcileLessons } from "./lesson-jobs";
 import { ingestMail } from "./mail";
 import { mailView } from "./mail-view";
 import { checkLessonModel } from "./openai";
-import { highlights, listPlans, savePlan } from "./plans";
+import { highlights, listPlanMonths, listPlans, savePlan } from "./plans";
 import { detail, listMail, stats } from "./queries";
 import { translationAdmin } from "./translation-admin";
 import { reconcileTranslations, translateNewContent } from "./translation-jobs";
@@ -94,6 +94,8 @@ async function route(
   }
   if (request.method !== "GET" && request.method !== "HEAD")
     throw new HttpError(405, "Method not allowed.");
+  if (path === "/api/plan-months")
+    return Response.json(await listPlanMonths(env.DB));
   if (path === "/api/plans") return Response.json(await listPlans(env.DB, url));
   if (path === "/api/highlights")
     return Response.json(await highlights(env.DB, url));

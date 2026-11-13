@@ -1,8 +1,26 @@
 import { expect, test } from "@playwright/test";
+import { fixtureMail } from "../fixtures/mail";
+import { fixturePlan } from "../fixtures/plan";
 
 test("switches every view to Chinese, remembers the client choice and keeps a usable layout", async ({
   page,
+  request,
 }) => {
+  const headers = { Authorization: "Bearer local-e2e-import-token" };
+  const { id } = await (
+    await request.post("/api/import", {
+      headers,
+      data: fixtureMail(`month-language-${crypto.randomUUID()}`),
+    })
+  ).json();
+  expect(
+    (
+      await request.post("/api/plans", {
+        headers,
+        data: fixturePlan(id, "2040-09-10"),
+      })
+    ).status(),
+  ).toBe(201);
   await page.goto("/");
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
   await expect(
@@ -37,14 +55,20 @@ test("switches every view to Chinese, remembers the client choice and keeps a us
       .boundingBox();
     expect(button?.x).toBeGreaterThan((page.viewportSize()?.width || 0) / 2);
   }
-  await page.getByLabel("年份", { exact: true }).fill("2040");
-  await page.getByLabel("月份", { exact: true }).selectOption("09");
+  await expect(
+    page.locator('.month-form input:not([type="hidden"])'),
+  ).toHaveCount(0);
+  await page.getByLabel("月份", { exact: true }).selectOption("2040-09");
   await page.getByRole("button", { name: "查看", exact: true }).click();
   await expect(page).toHaveURL(/month=2040-09/);
-  await expect(page.locator("#month option:checked")).toHaveText("9月");
+  await expect(page.locator("#month option:checked")).toHaveText("2040年9月");
   await page.getByRole("button", { name: "English", exact: true }).click();
-  await expect(page.locator("#month option:checked")).toHaveText("Sep");
-  await expect(page.getByLabel("Year", { exact: true })).toHaveValue("2040");
+  await expect(page.locator("#month option:checked")).toHaveText(
+    "September 2040",
+  );
+  await expect(page.getByLabel("Month", { exact: true })).toHaveValue(
+    "2040-09",
+  );
   await expect(
     page.getByRole("heading", { name: "Lesson plans", level: 1 }),
   ).toBeVisible();
