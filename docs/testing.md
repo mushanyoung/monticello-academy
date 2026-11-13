@@ -5,3 +5,5 @@ Unit tests 验证班级识别、跨列表去重、日期与课程等业务边界
 Playwright 在桌面和手机尺寸验证实际用户流程；测试邮件仅为构造数据，不能写入生产。日期固定或由校园时区计算。
 
 统一命令 `pnpm check`。失败诊断见 `test-results/` 与 `playwright-report/`，CI 上传保留 14 天。分别说明本地与远端 Actions 结果。
+
+已覆盖原始 ID 与无 ID 去重、嵌套 .eml、精确列表识别、HTML 转文本、输入上限、并发三班投递、实际附件下载、文本附件搜索、字面百分号查询、排序、无效筛选与导入鉴权。API 测试通过 cf dev 运行，使用生产相同的 D1 SQL 和 R2 binding。

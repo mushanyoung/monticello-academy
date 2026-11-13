@@ -18,7 +18,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "pnpm dev",
+    command:
+      "pnpm db:migrate:local --persist-to .cloudflare/test-state && pnpm dev --mode test",
     url: "http://127.0.0.1:5173",
     reuseExistingServer: false,
     timeout: 60000,
