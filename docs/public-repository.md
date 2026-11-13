@@ -1,10 +1,10 @@
 # 公开仓库与配置边界
 
-代码、模板、合成测试数据公开；个人邮箱、学校邮件列表地址、具体 Cloudflare 部署参数、凭据和真实邮件不进入源码、配置、文档或提交说明。三个班级的显示名称是产品内容，邮箱映射由 MAIL_CONFIG Secret 注入。Mushan 明确允许 Git 作者、提交者和标签创建者的身份字段使用公开个人邮箱，以便 GitHub 正确关联贡献。
+代码、模板、合成测试数据公开；个人邮箱、学校邮件列表地址、具体 Cloudflare 部署参数、凭据和真实邮件不进入源码、配置、文档或提交说明。三个班级的显示名称是产品内容，邮箱映射由 MAIL_CONFIG Secret 注入。明确允许 Git 作者、提交者和标签创建者的身份字段使用公开个人邮箱，以便 GitHub 正确关联贡献。
 
 `pnpm check:public` 检查当前受跟踪和待加入文件；`pnpm check:public --history` 检查所有可达历史对象及作者/提交者元数据。检测非示例邮箱、常见凭据、真实 UUID、具体 Workers 域名和意外跟踪的本地配置；它补充专业 secret scanner，不能代替限定范围的判断。CI 同时运行固定版本且验证下载校验和的 Gitleaks 8.30.1，扫描全部历史并保留脱敏报告。GitHub Secret Scanning 与 Push Protection 已启用。所有测试使用保留的 example 域名。
 
-提交使用 Mushan 的正常 Git 身份，可从现有 Git 配置确认；如需设置，只修改当前仓库的 `user.name` / `user.email`，不修改全局身份，不再匿名化。扫描器仅允许真实 Git 对象头部合法 `author` / `committer` / `tagger` 字段内的邮箱；提交说明、其他头部以及所有文件仍检查非示例邮箱，凭据和部署参数检查也继续覆盖身份字段。这是用户明确授权的范围例外，不能扩展到运行配置。
+提交使用正常 Git 身份，可从现有 Git 配置确认；如需设置，只修改当前仓库的 `user.name` / `user.email`，不修改全局身份，不再匿名化。扫描器仅允许真实 Git 对象头部合法 `author` / `committer` / `tagger` 字段内的邮箱；提交说明、其他头部以及所有文件仍检查非示例邮箱，凭据和部署参数检查也继续覆盖身份字段。这是用户明确授权的范围例外，不能扩展到运行配置。
 
 不要跟踪 `.cloudflare/`、`.dev.vars*`、`.env*` 或生产构建产物。部署前从 Cloudflare 拉取绑定和路由；不要把真实值粘贴到 issue、commit message、测试快照或文档。
 
