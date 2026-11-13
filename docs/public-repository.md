@@ -2,7 +2,7 @@
 
 代码、模板、合成测试数据公开；个人邮箱、学校邮件列表地址、具体 Cloudflare 部署参数、凭据和真实邮件不进入 Git。三个班级的显示名称是产品内容，邮箱映射由 MAIL_CONFIG Secret 注入。
 
-`pnpm check:public` 检查当前受跟踪和待加入文件；`pnpm check:public --history` 检查所有可达历史对象及作者/提交者元数据。检测非示例邮箱、常见凭据、真实 UUID、具体 Workers 域名和意外跟踪的本地配置；它补充专业 secret scanner，不能代替限定范围的判断。CI 同时检查全部历史。所有测试使用保留的 example 域名。
+`pnpm check:public` 检查当前受跟踪和待加入文件；`pnpm check:public --history` 检查所有可达历史对象及作者/提交者元数据。检测非示例邮箱、常见凭据、真实 UUID、具体 Workers 域名和意外跟踪的本地配置；它补充专业 secret scanner，不能代替限定范围的判断。CI 同时运行固定版本且验证下载校验和的 Gitleaks 8.30.1，扫描全部历史并保留脱敏报告。GitHub Secret Scanning 与 Push Protection 已启用。所有测试使用保留的 example 域名。
 
 提交使用 `Monticello contributors <contributors@example.invalid>`；当前仓库的 Git user 配置应采用该身份，不修改全局身份。不要跟踪 `.cloudflare/`、`.dev.vars*`、`.env*` 或生产构建产物。部署前从 Cloudflare 拉取绑定和路由；不要把真实值粘贴到 issue、commit message、测试快照或文档。
 
