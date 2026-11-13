@@ -2,15 +2,24 @@ import { isClassId } from "../shared/classes";
 import { parseMailConfig } from "../shared/mail-config";
 import { isAdmin } from "./auth";
 import { HttpError, MAX_EMAIL_BYTES, readLimited } from "./errors";
+import { lessonAdmin } from "./lesson-admin";
+import { enqueueMessageLessons, reconcileLessons } from "./lesson-jobs";
 import { ingestMail } from "./mail";
 import { mailView } from "./mail-view";
 import { checkLessonModel } from "./openai";
 import { highlights, listPlans, savePlan } from "./plans";
 import { detail, listMail, stats } from "./queries";
 
-async function route(request: Request, env: Env): Promise<Response> {
+export { LessonWorkflow } from "./lesson-workflow";
+
+async function route(
+  request: Request,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<Response> {
   const url = new URL(request.url);
   const path = url.pathname;
+  if (path.startsWith("/api/admin/lessons")) return lessonAdmin(request, env);
   if (path === "/api/site")
     return Response.json({
       inboundAddress: parseMailConfig(env.MAIL_CONFIG).inboundAddress,
@@ -19,7 +28,9 @@ async function route(request: Request, env: Env): Promise<Response> {
   if (path === "/api/admin/ai" && request.method === "GET") {
     if (!(await isAdmin(request, env)))
       throw new HttpError(401, "Import credentials required.");
-    return Response.json(await checkLessonModel(env.OPENAI_API_KEY));
+    return Response.json(
+      await checkLessonModel(env.OPENAI_API_KEY, fetch, env.LESSON_OPENAI_BASE),
+    );
   }
   if (path === "/api/import" && request.method === "POST") {
     if (!(await isAdmin(request, env)))
@@ -33,6 +44,14 @@ async function route(request: Request, env: Env): Promise<Response> {
       raw,
       "",
       selected && isClassId(selected) ? [selected] : [],
+    );
+    ctx.waitUntil(
+      enqueueMessageLessons(
+        env,
+        messages.map((message) => message.id),
+      ).catch(() =>
+        console.error(JSON.stringify({ event: "lesson_enqueue_failed" })),
+      ),
     );
     return Response.json(messages.length === 1 ? messages[0] : { messages }, {
       status: 201,
@@ -102,10 +121,10 @@ async function route(request: Request, env: Env): Promise<Response> {
   throw new HttpError(404, "Not found.");
 }
 export default {
-  async fetch(request, env) {
+  async fetch(request, env, ctx) {
     let response: Response;
     try {
-      response = await route(request, env);
+      response = await route(request, env, ctx);
     } catch (error) {
       if (error instanceof HttpError)
         response = Response.json(
@@ -131,7 +150,10 @@ export default {
     response.headers.set("Referrer-Policy", "no-referrer");
     return response;
   },
-  async email(message, env) {
+  async scheduled(_event, env, ctx) {
+    ctx.waitUntil(reconcileLessons(env));
+  },
+  async email(message, env, ctx) {
     if (message.rawSize > MAX_EMAIL_BYTES) {
       message.setReject("Email exceeds 20 MB.");
       return;
@@ -158,6 +180,14 @@ export default {
         env,
         await readLimited(message.raw, MAX_EMAIL_BYTES),
         message.to,
+      );
+      ctx.waitUntil(
+        enqueueMessageLessons(
+          env,
+          result.map((message) => message.id),
+        ).catch(() =>
+          console.error(JSON.stringify({ event: "lesson_enqueue_failed" })),
+        ),
       );
       console.log(
         JSON.stringify({

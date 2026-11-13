@@ -6,7 +6,7 @@
 
 - `config/deployment.example.json`：Worker 名称、D1 ID、R2 bucket、收件路由地址的模板。
 - `config/mail.example.json`：统一收件地址、允许转发人、允许的发件域名、三个班邮箱映射模板。
-- 生产 `MAIL_CONFIG` Secret：邮件配置的完整 JSON；`IMPORT_TOKEN` Secret：管理写入密钥；`OPENAI_API_KEY` Secret：预留给课程提取的 OpenAI API 凭据。具体值通过 Cloudflare 管理，不进入 Git 或网页 bundle。
+- 生产 `MAIL_CONFIG` Secret：邮件配置的完整 JSON；`IMPORT_TOKEN` Secret：管理写入密钥；`OPENAI_API_KEY` Secret：用于课程提取的 OpenAI API 凭据。具体值通过 Cloudflare 管理，不进入 Git 或网页 bundle。
 - Cloudflare Bindings / Email Routing：部署资源和路由的事实来源。`pnpm config:pull <worker-name>` 读取已部署 Worker 的绑定和匹配的收件规则，写到忽略的 `.cloudflare/deployment.json`（0600），不打印具体配置。认证账户由 cf profile 选择。
 
 网页通过 `/api/site` 读取公开收件入口；这个入口会在已选择公开的网站上展示。允许转发人、学校邮箱映射和导入密钥不会通过配置 API 暴露。
@@ -17,7 +17,7 @@
 
 `pnpm check` 在没有 Cloudflare 登录和本地生产配置时也能执行。生产模式构建可用模板产物；生产部署入口检查真实本地部署配置是否存在，缺失即拒绝。
 
-`OPENAI_API_KEY` 在 development/test 模式绑定为空字符串，本地检查和 CI 不需要真实 OpenAI 凭据，也不调用模型。
+`OPENAI_API_KEY` 在 development 模式为空；test 模式仅使用本地 HTTP fixture 的测试凭据。CI 不访问真实模型，也不需要真实凭据。开发环境默认关闭自动解析。
 
 ## 部署
 
@@ -45,4 +45,21 @@ POST `/api/import` 使用 Bearer IMPORT_TOKEN，body 为原始 .eml；`?class=su
 
 `/api/health` 检查 Worker 可用；`/api/stats`、`/api/mail` 验证 D1；附件通过 Worker 从私有 R2 读取。运行日志只记录事件、内部 ID 和错误类型。失败投递可重试，去重规则保证幂等。迁移按编号应用；已有数据回滚须先备份 D1/R2。
 
-`GET /api/admin/ai` 需要 Bearer IMPORT_TOKEN，可检查 Cloudflare 内的 API key 是否能访问配置的课程解析模型。该端点不返回密钥或账户模型列表，不产生模型推理费用；本地与 CI 没有 key 时返回 503。
+`GET /api/admin/ai` 需要 Bearer IMPORT_TOKEN，可检查 Cloudflare 内的 API key 是否能访问配置的课程解析模型。该端点不返回密钥或账户模型列表，不产生模型推理费用；本地开发没有 key 时返回 503。
+
+## 课程后台与通知
+
+config/lessons.example.json 是 LESSON_CONFIG Secret 模板：enabled 控制新邮件自动处理；processFrom 是自动补扫的收信时间起点；notificationFrom 属于启用 Email Routing 的域名，notificationTo 必须是该账户已验证的目标地址；siteUrl 是通知中的网站链接。真实值仅上传为 Secret。用 cf email-routing addresses list 核实收件人，沿用已有路由。
+
+cf 配置声明 LessonWorkflow、LESSONS workflow binding、LESSON_EMAIL sendEmail binding 和每 15 分钟的 scheduled trigger。发布前应用 migrations。更新 Secret 使用权限为 0600 的临时 JSON，部署后删除；后续部署保留远端 Secret。
+
+所有下列端点要求 Bearer IMPORT_TOKEN：
+
+- GET /api/admin/lessons：最近 200 个 job 和 100 条通知状态，不返回通知地址或密钥。
+- POST /api/admin/lessons：JSON 包含 attachmentIds（1–30 个已归档 PDF 的 64 位十六进制 ID）、notify（默认 true；历史回填可 false）。
+- GET /api/admin/lessons/:id/result：私有模型结果供排障，不得提交到仓库。
+- POST /api/admin/lessons/:id/retry：仅重试 failed job，递增 attempt 并创建新 Workflow。不存在批准或确认端点。
+- POST /api/admin/lessons/reconcile：立即执行补扫、失效任务检测及通知重试。
+- POST /api/admin/lessons/notification-test：向固定收件人发送测试通知，返回 sent/pending 和提供商 message ID。sent 表示 Cloudflare 接受发送，不代表收件箱已读取。
+
+排障先看 job.error_code、通知状态与 Workflow 步骤。鉴权或余额问题修复后重试；替换损坏 PDF 会产生新内容任务。不要关闭校验、删除来源差异或设置人工审批来绕过失败。

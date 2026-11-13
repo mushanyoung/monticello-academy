@@ -1,5 +1,11 @@
-import { bindings, defineConfig, triggers } from "cf/config";
+import {
+  bindings,
+  defineConfig,
+  triggers,
+  exports as workerExports,
+} from "cf/config";
 import { deploymentConfig } from "./config/deployment.ts";
+import lessonExample from "./config/lessons.example.json" with { type: "json" };
 import mailExample from "./config/mail.example.json" with { type: "json" };
 import * as entrypoint from "./src/worker/index.ts" with { type: "cf-worker" };
 export default defineConfig(({ mode }) => {
@@ -9,6 +15,12 @@ export default defineConfig(({ mode }) => {
       name: deployment.workerName,
       compatibilityDate: "2026-11-13",
       entrypoint,
+      exports: {
+        LessonWorkflow: workerExports.workflow({
+          name: `${deployment.workerName}-lessons`,
+          concurrency: { limit: 3 },
+        }),
+      },
       workersDev: true,
       observability: { enabled: true, traces: { enabled: true } },
       assets: {
@@ -28,12 +40,32 @@ export default defineConfig(({ mode }) => {
             : bindings.secret(),
         OPENAI_API_KEY:
           mode === "test" || mode === "development"
-            ? bindings.text("")
+            ? bindings.text(mode === "test" ? "local-fixture-provider" : "")
             : bindings.secret(),
+        LESSON_CONFIG:
+          mode === "test" || mode === "development"
+            ? bindings.text(
+                JSON.stringify({ ...lessonExample, enabled: mode === "test" }),
+              )
+            : bindings.secret(),
+        LESSON_OPENAI_BASE: bindings.text(
+          mode === "test"
+            ? "http://127.0.0.1:5199/v1"
+            : "https://api.openai.com/v1",
+        ),
+        LESSONS: bindings.workflow({
+          name: `${deployment.workerName}-lessons`,
+          worker: deployment.workerName,
+          exportName: "LessonWorkflow",
+        }),
+        LESSON_EMAIL: bindings.sendEmail(),
       },
-      triggers: deployment.emailRoutingAddresses.length
-        ? [triggers.email({ addresses: deployment.emailRoutingAddresses })]
-        : [],
+      triggers: [
+        triggers.scheduled({ schedule: "*/15 * * * *" }),
+        ...(deployment.emailRoutingAddresses.length
+          ? [triggers.email({ addresses: deployment.emailRoutingAddresses })]
+          : []),
+      ],
     },
   };
 });

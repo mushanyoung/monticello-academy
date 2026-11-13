@@ -19,11 +19,18 @@ export default defineConfig({
       use: { ...devices["iPhone 13"], defaultBrowserType: "chromium" },
     },
   ],
-  webServer: {
-    command:
-      "node scripts/reset-test-state.ts && pnpm db:migrate:local --persist-to .cloudflare/test-state && pnpm dev --mode test",
-    url: "http://127.0.0.1:5173",
-    reuseExistingServer: false,
-    timeout: 60000,
-  },
+  webServer: [
+    {
+      command: "node scripts/mock-openai.ts",
+      url: "http://127.0.0.1:5199/health",
+      reuseExistingServer: false,
+    },
+    {
+      command:
+        "node scripts/reset-test-state.ts && pnpm db:migrate:local --persist-to .cloudflare/test-state && pnpm dev --mode test",
+      url: "http://127.0.0.1:5173",
+      reuseExistingServer: false,
+      timeout: 60000,
+    },
+  ],
 });

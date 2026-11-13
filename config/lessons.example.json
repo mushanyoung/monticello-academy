@@ -1,0 +1,7 @@
+{
+  "enabled": false,
+  "processFrom": "2026-01-01T00:00:00.000Z",
+  "notificationFrom": "archive@example.com",
+  "notificationTo": "parent@example.com",
+  "siteUrl": "https://school.example.com"
+}

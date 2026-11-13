@@ -74,15 +74,16 @@ test("publishes source-linked monthly plans and updates daily highlights", async
     400,
   );
 });
-test("keeps provider readiness private and does not call OpenAI without a local key", async ({
+test("keeps provider readiness private and uses the local provider fixture", async ({
   request,
 }) => {
   expect((await request.get("/api/admin/ai")).status()).toBe(401);
   const response = await request.get("/api/admin/ai", {
     headers: { Authorization: "Bearer local-e2e-import-token" },
   });
-  expect(response.status()).toBe(503);
+  expect(response.status()).toBe(200);
   expect(await response.json()).toEqual({
-    error: "The lesson parser API key is not configured.",
+    model: "gpt-6.1-terra",
+    available: true,
   });
 });
