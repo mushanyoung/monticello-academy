@@ -2,6 +2,7 @@ import { isClassId } from "../shared/classes";
 import { isAdmin } from "./auth";
 import { HttpError, MAX_EMAIL_BYTES, readLimited } from "./errors";
 import { ingestMail } from "./mail";
+import { highlights, listPlans, savePlan } from "./plans";
 import { detail, listMail, stats } from "./queries";
 
 async function route(request: Request, env: Env): Promise<Response> {
@@ -25,8 +26,23 @@ async function route(request: Request, env: Env): Promise<Response> {
       { status: 201 },
     );
   }
+  if (path === "/api/plans" && request.method === "POST") {
+    if (!(await isAdmin(request, env)))
+      throw new HttpError(401, "Import credentials required.");
+    const bytes = await readLimited(request.body, 256 * 1024);
+    let input: unknown;
+    try {
+      input = JSON.parse(new TextDecoder().decode(bytes));
+    } catch {
+      throw new HttpError(400, "Invalid JSON.");
+    }
+    return Response.json(await savePlan(env.DB, input), { status: 201 });
+  }
   if (request.method !== "GET" && request.method !== "HEAD")
     throw new HttpError(405, "Method not allowed.");
+  if (path === "/api/plans") return Response.json(await listPlans(env.DB, url));
+  if (path === "/api/highlights")
+    return Response.json(await highlights(env.DB, url));
   if (path === "/api/mail") return Response.json(await listMail(env.DB, url));
   if (path === "/api/stats") return Response.json(await stats(env.DB));
   const mailMatch = path.match(/^\/api\/mail\/([a-f0-9]{64})$/);
