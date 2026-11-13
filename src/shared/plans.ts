@@ -8,6 +8,28 @@ export function validDate(value: string): boolean {
   );
 }
 const shortText = z.string().trim().min(1).max(1000);
+export const focusSchema = z
+  .object({
+    area: shortText,
+    items: z.array(shortText).max(40),
+  })
+  .strict();
+export const weekSchema = z
+  .object({
+    startDate: z.string().refine(validDate, "Invalid week start"),
+    endDate: z.string().refine(validDate, "Invalid week end"),
+    theme: shortText,
+    focus: z.array(focusSchema).max(20),
+  })
+  .strict();
+export const planSourceSchema = z
+  .object({
+    attachmentId: z.string().regex(/^[a-f0-9]{64}$/),
+    messageId: z.string().regex(/^[a-f0-9]{64}$/),
+    filename: z.string().min(1).max(1000),
+    documentMonth: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+  })
+  .strict();
 export const daySchema = z
   .object({
     date: z.string().refine(validDate, "Invalid calendar date"),
@@ -19,6 +41,11 @@ export const daySchema = z
     bring: z.array(shortText).max(20),
     note: z.string().max(2000),
     noSchool: z.boolean(),
+    sourceAttachmentId: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/)
+      .optional(),
+    sourcePages: z.array(z.number().int().min(1).max(100)).max(20).optional(),
   })
   .strict();
 export const planSchema = z
@@ -28,10 +55,14 @@ export const planSchema = z
     title: shortText,
     theme: shortText,
     overview: z.string().max(5000),
-    objectives: z.array(shortText).max(30),
+    objectives: z.array(shortText).max(60),
     sourceMessageId: z.string().regex(/^[a-f0-9]{64}$/),
     status: z.enum(["draft", "published"]),
     days: z.array(daySchema).max(31),
+    monthlyReminders: z.array(shortText).max(40).optional(),
+    weeks: z.array(weekSchema).max(12).optional(),
+    sources: z.array(planSourceSchema).max(20).optional(),
+    sourceKind: z.enum(["monthly", "carryover"]).optional(),
   })
   .strict()
   .superRefine((plan, ctx) => {
@@ -50,6 +81,25 @@ export const planSchema = z
           path: ["days"],
         });
       dates.add(day.date);
+      if (
+        day.sourceAttachmentId &&
+        !plan.sources?.some(
+          (source) => source.attachmentId === day.sourceAttachmentId,
+        )
+      )
+        ctx.addIssue({
+          code: "custom",
+          message: "Each day source must belong to the plan",
+          path: ["days"],
+        });
+    }
+    for (const week of plan.weeks || []) {
+      if (week.startDate > week.endDate)
+        ctx.addIssue({
+          code: "custom",
+          message: "Week end precedes its start",
+          path: ["weeks"],
+        });
     }
   });
 export type LessonPlan = z.infer<typeof planSchema>;
