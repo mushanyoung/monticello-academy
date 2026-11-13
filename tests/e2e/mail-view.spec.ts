@@ -92,6 +92,18 @@ test("reads original styling and inline images while isolating active content an
     path: testInfo.outputPath("formatted-email.png"),
     fullPage: true,
   });
+  for (const [language, details, archived] of [
+    ["English", "Message details", "Archived:"],
+    ["中文", "邮件详情", "归档时间："],
+  ] as const) {
+    await page.getByRole("button", { name: language, exact: true }).click();
+    await page.getByText(details, { exact: true }).click();
+    await expect(page.locator(".mail-metadata")).toContainText(archived);
+    await expect(page.locator(".mail-metadata")).not.toContainText(
+      /To:|收件人|parents-sunshine@school\.example\.com/,
+    );
+    await expect(page.locator('a[href^="/api/original/"]')).toHaveCount(0);
+  }
 });
 
 test("falls back to readable text when formatting fails and can retry", async ({

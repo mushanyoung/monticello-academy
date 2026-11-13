@@ -827,10 +827,6 @@ h2 {
 .mail-metadata p {
   margin-bottom: 10px;
 }
-.mail-metadata a {
-  color: #75538b;
-  text-decoration: underline;
-}
 .mail-body {
   border-top: 1px solid #eee4e9;
   padding-top: 25px;

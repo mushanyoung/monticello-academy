@@ -55,19 +55,12 @@ function MailReader({
       <details className="mail-metadata">
         <summary>{t("Message details")}</summary>
         <p>
-          {t("To:")}{" "}
-          {item.recipients || t("Not included in the original headers")}
-        </p>
-        <p>
           {t("Archived:")}{" "}
           {displayDate(item.received_at, {
             dateStyle: "medium",
             timeStyle: "short",
           })}
         </p>
-        <a href={`/api/original/${item.id}`}>
-          {t("Download original email (.eml)")}
-        </a>
       </details>
       <EmailContent
         key={`${item.id}-${language}`}

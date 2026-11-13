@@ -35,9 +35,7 @@ export const messages = {
   "Classroom not identified": "未识别班级",
   "· Pacific time": "· 太平洋时间",
   "Message details": "邮件详情",
-  "To:": "收件人：",
   "Archived:": "归档时间：",
-  "Download original email (.eml)": "下载原始邮件（.eml）",
   "Search mail": "搜索邮件",
   "Search words, senders, or attachment names…": "搜索内容、发件人或附件名称…",
   "Sort by time": "按时间排序",
@@ -101,7 +99,6 @@ export const messages = {
   "Visit classroom mail": "查看班级邮件",
   "This email has no text body. See the attachments or download the original email.":
     "这封邮件没有文字正文，请查看附件或下载原始邮件。",
-  "Not included in the original headers": "原始邮件头中未包含",
   " in your notebook": "在手记中",
   "An update from the classroom.": "一条来自班级的新消息。",
   "No notes found this time.": "这次没有找到匹配的消息。",
