@@ -131,7 +131,7 @@ export function Mailbox({
   const query = new URLSearchParams({ class: selected, q, sort, page });
   const mail = useApi<MailPage>(`/api/mail?${query}`);
   return (
-    <>
+    <div className={`mail-page ${id ? "reading" : ""}`}>
       <header className="page-heading">
         <span className="eyebrow">THE CLASSROOM POST</span>
         <h1>
@@ -286,6 +286,6 @@ export function Mailbox({
         </section>
         {id && <MailReader id={id} selected={selected} q={q} sort={sort} />}
       </div>
-    </>
+    </div>
   );
 }

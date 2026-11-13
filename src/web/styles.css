@@ -704,13 +704,14 @@ h2 {
   position: fixed;
   z-index: 100;
   left: 15px;
-  top: -70px;
+  top: 10px;
+  transform: translateY(-200%);
   padding: 12px 20px;
   background: #30233e;
   color: white;
 }
-.skip-link:focus {
-  top: 10px;
+.skip-link:focus-visible {
+  transform: translateY(0);
 }
 .load-state {
   padding: 45px 20px;
@@ -1666,6 +1667,16 @@ h2 {
   }
   .objectives {
     padding: 16px;
+  }
+}
+@media (max-width: 700px) {
+  .reading > .page-heading,
+  .reading > .class-filters,
+  .reading > search {
+    display: none;
+  }
+  .reading {
+    padding-top: 24px;
   }
 }
 @media (max-width: 370px) {
