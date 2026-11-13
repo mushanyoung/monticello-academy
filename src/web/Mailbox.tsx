@@ -3,6 +3,7 @@ import type { MailDetail, MailPage } from "../shared/models";
 import { displayDate, href, useApi } from "./api";
 import { Icon } from "./art";
 import { ClassBadge, ClassFilters, Empty, LoadState } from "./components";
+import { EmailContent } from "./EmailContent";
 
 function MailReader({
   id,
@@ -59,10 +60,7 @@ function MailReader({
         </p>
         <a href={`/api/original/${item.id}`}>Download original email (.eml)</a>
       </details>
-      <div className="mail-body">
-        {item.body_text ||
-          "This email has no text body. See the attachments or download the original email."}
-      </div>
+      <EmailContent key={item.id} id={item.id} text={item.body_text} />
       {item.attachments.length > 0 && (
         <section className="attachments">
           <h3>

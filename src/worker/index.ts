@@ -3,6 +3,7 @@ import { parseMailConfig } from "../shared/mail-config";
 import { isAdmin } from "./auth";
 import { HttpError, MAX_EMAIL_BYTES, readLimited } from "./errors";
 import { ingestMail } from "./mail";
+import { mailView } from "./mail-view";
 import { highlights, listPlans, savePlan } from "./plans";
 import { detail, listMail, stats } from "./queries";
 
@@ -50,6 +51,9 @@ async function route(request: Request, env: Env): Promise<Response> {
     return Response.json(await highlights(env.DB, url));
   if (path === "/api/mail") return Response.json(await listMail(env.DB, url));
   if (path === "/api/stats") return Response.json(await stats(env.DB));
+  const viewMatch = path.match(/^\/api\/mail\/([a-f0-9]{64})\/content$/);
+  if (viewMatch?.[1])
+    return mailView(env, viewMatch[1], url.searchParams.get("images") === "1");
   const mailMatch = path.match(/^\/api\/mail\/([a-f0-9]{64})$/);
   if (mailMatch?.[1]) return Response.json(await detail(env.DB, mailMatch[1]));
   const download = path.match(

@@ -16,8 +16,14 @@ R2 使用内容寻址 key，在 D1 事务前完成写入。失败会抛出以便
 
 ## 查询与公开访问
 
-用户明确选择公开访问。GET API、正文与附件公开；写入只能通过允许的发件人 email handler 或带 IMPORT_TOKEN 的管理接口。令牌用固定长度哈希的 timing-safe 比较；生产没有测试令牌。MAIL_CONFIG Secret 配置的学校域名与转发人允许入站，其他信封发件人拒绝。公开邮件正文以纯文本渲染，HTML 仅转文本，不加载远端跟踪图片。附件默认强制下载；仅 PDF、常见栅格图和纯文本允许隔离预览。禁止缓存 API，响应设置 nosniff。
+用户明确选择公开访问。GET API、正文与附件公开；写入只能通过允许的发件人 email handler 或带 IMPORT_TOKEN 的管理接口。令牌用固定长度哈希的 timing-safe 比较；生产没有测试令牌。MAIL_CONFIG Secret 配置的学校域名与转发人允许入站，其他信封发件人拒绝。邮件默认在隔离 iframe 中显示净化后的原始 HTML，保留颜色、字体、列表和表格，可切换纯文本。GET `/api/mail/:id/content` 从已有 R2 原件按需解析，不需要迁移或重新导入历史邮件；CID 图片通过内容哈希关联已入库附件。附件默认强制下载；仅 PDF、常见栅格图和纯文本允许隔离预览。禁止缓存 API，响应设置 nosniff。
 
 搜索对组合索引做 Unicode 小写后的字面子串匹配，支持中文和标点，无 SQL/FTS 查询语法注入。小规模校园档案优先可预测语义；参数绑定，结果每页 30 条，日期和 ID 稳定排序。
 
 邮件地址与允许发件人从 MAIL_CONFIG Secret 解析并验证，前端仅接收公开收件地址。D1/R2 绑定与路由由 cf CLI 从 Cloudflare 拉取到忽略文件；公开源码无真实部署参数。
+
+## 原始邮件显示边界
+
+`sanitize-html` 只允许排版标签和明确属性，去除脚本、事件、表单、iframe、SVG、导航 meta/base；链接固定新窗口并设置 noopener/noreferrer。为保留学校邮件样式，明确允许 `<style>`（`allowVulnerableTags` 的限定例外）：HTML 只由专用端点输出，绝不插入应用 DOM；端点 CSP 和 iframe sandbox 均禁止脚本、表单及顶层导航，CSP 在单独打开端点时同样生效。allow-same-origin 只供父页面测量内容高度，禁止同时添加 allow-scripts。
+
+外部图片默认从 img 属性中移除，srcset 不保留；CSS 网络请求同时由 CSP 拦截。用户点击 Load external images 后仅开放图片 http(s) 来源，外部样式表、字体、脚本和连接仍禁止。CID 仅映射同封邮件已归档的 PNG/JPEG/GIF/WebP，data 图片也仅允许这些类型。图片和表格宽度适配容器；超长邮件高度封顶后在框内滚动。格式加载失败回退纯文本并允许重试。真实邮件和截图只可保存在忽略的本地目录。
