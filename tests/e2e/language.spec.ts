@@ -47,7 +47,9 @@ test("switches every view to Chinese, remembers the client choice and keeps a us
     ).toBeVisible();
     expect(
       await page.evaluate(
-        () => document.documentElement.scrollWidth <= window.innerWidth,
+        () =>
+          document.documentElement.scrollWidth <=
+          document.documentElement.clientWidth,
       ),
     ).toBe(true);
     const button = await page

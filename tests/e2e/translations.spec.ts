@@ -87,7 +87,9 @@ test("persists both mail languages, preserves formatting and images, and searche
   );
   expect(
     await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
+      () =>
+        document.documentElement.scrollWidth <=
+        document.documentElement.clientWidth,
     ),
   ).toBe(true);
   await page.screenshot({

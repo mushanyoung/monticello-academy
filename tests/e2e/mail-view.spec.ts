@@ -85,7 +85,9 @@ test("reads original styling and inline images while isolating active content an
   await expect(page.locator("html")).not.toHaveAttribute("data-browser-error");
   expect(
     await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
+      () =>
+        document.documentElement.scrollWidth <=
+        document.documentElement.clientWidth,
     ),
   ).toBe(true);
   await page.screenshot({

@@ -682,6 +682,7 @@ h2 {
 }
 .mail-layout {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 26px;
 }
 .mail-layout.has-detail {
@@ -723,6 +724,7 @@ h2 {
 .mail-item-top {
   display: flex;
   flex-wrap: wrap;
+  overflow-wrap: anywhere;
   justify-content: space-between;
   gap: 10px;
   color: #947d9a;

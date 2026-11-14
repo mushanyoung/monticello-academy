@@ -22,7 +22,9 @@ test("opens the notebook and preserves a usable mobile viewport", async ({
   });
   expect(
     await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
+      () =>
+        document.documentElement.scrollWidth <=
+        document.documentElement.clientWidth,
     ),
   ).toBe(true);
 });
@@ -86,7 +88,9 @@ test("checks today and tomorrow, opens the monthly plan and reads its source", a
   });
   expect(
     await page.evaluate(
-      () => document.documentElement.scrollWidth <= innerWidth,
+      () =>
+        document.documentElement.scrollWidth <=
+        document.documentElement.clientWidth,
     ),
   ).toBe(true);
 });
@@ -114,6 +118,59 @@ test("searches and filters classroom mail and shows genuine empty results", asyn
   await expect(
     page.getByRole("heading", { name: "No notes found this time." }),
   ).toBeVisible();
+});
+test("paginates long mail lists without widening the viewport in either language", async ({
+  page,
+  request,
+}) => {
+  const key = `pagination-${crypto.randomUUID()}`;
+  const sender = `${"newsletter".repeat(6)}@school.example.com`;
+  for (let index = 0; index < 31; index++) {
+    const response = await request.post("/api/import", {
+      headers,
+      data: fixtureMail(`${key}-${index}`).replace(
+        /^From:[^\r\n]*/,
+        `From: ${sender}`,
+      ),
+    });
+    expect(response.status()).toBe(201);
+  }
+  for (const [language, next, previous] of [
+    ["English", "Next →", "← Previous"],
+    ["中文", "下一页 →", "← 上一页"],
+  ] as const) {
+    await page.goto(`/?view=mail&class=sunshine&sort=oldest&q=${key}`);
+    await page.getByRole("button", { name: language, exact: true }).click();
+    await expect(page.locator(".mail-item")).toHaveCount(30);
+    await page.evaluate(() => document.fonts.ready);
+    expect(
+      await page.evaluate(
+        () =>
+          document.documentElement.scrollWidth <=
+          document.documentElement.clientWidth,
+      ),
+    ).toBe(true);
+    const first = await page
+      .locator(".mail-item")
+      .evaluateAll((items) => items.map((item) => item.getAttribute("href")));
+    await page.getByRole("link", { name: next, exact: true }).click();
+    await expect(page).toHaveURL((url) => url.searchParams.get("page") === "2");
+    await expect(page.locator(".mail-item")).toHaveCount(1);
+    expect(first).not.toContain(
+      await page.locator(".mail-item").getAttribute("href"),
+    );
+    const params = new URL(page.url()).searchParams;
+    expect(params.get("q")).toBe(key);
+    expect(params.get("class")).toBe("sunshine");
+    expect(params.get("sort")).toBe("oldest");
+    await page.getByRole("link", { name: previous, exact: true }).click();
+    await expect(page.locator(".mail-item")).toHaveCount(30);
+    expect(
+      await page
+        .locator(".mail-item")
+        .evaluateAll((items) => items.map((item) => item.getAttribute("href"))),
+    ).toEqual(first);
+  }
 });
 test("shows load failure and retries without an endless loading state", async ({
   page,
