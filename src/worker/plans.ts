@@ -7,6 +7,7 @@ import {
 } from "../shared/language";
 import {
   type ClassHighlight,
+  type Highlights,
   type LessonPlan,
   planSchema,
   type StoredPlan,
@@ -140,14 +141,42 @@ export function selectHighlight(
     translationStatus: plan?.translationStatus || "ready",
   };
 }
-export async function highlights(db: D1Database, url: URL) {
+export const NEXT_HIGHLIGHT_DATE_SQL = `
+ SELECT min(json_extract(day.value,'$.date')) date
+ FROM lesson_plans p, json_each(p.document,'$.days') day
+ WHERE p.status='published' AND p.month>=?
+ AND json_extract(day.value,'$.date')>?
+ AND (? IS NULL OR p.class_id=?)`;
+
+export async function highlights(
+  db: D1Database,
+  url: URL,
+): Promise<Highlights> {
   const requested = url.searchParams.get("lang");
   const language = isLanguage(requested) ? requested : "en";
   const today = campusDate();
-  const date = url.searchParams.get("date") || today;
-  if (!validDate(date)) throw new HttpError(400, "Invalid calendar date.");
+  const selected = classFilter(url.searchParams.get("class"));
+  const after = url.searchParams.get("after");
+  if (after !== null && url.searchParams.has("date"))
+    throw new HttpError(400, "Choose either date or after.");
+  const requestedDate = after ?? url.searchParams.get("date") ?? today;
+  if (!validDate(requestedDate))
+    throw new HttpError(400, "Invalid calendar date.");
+  const date =
+    after === null
+      ? requestedDate
+      : ((
+          await db
+            .prepare(NEXT_HIGHLIGHT_DATE_SQL)
+            .bind(after.slice(0, 7), after, selected, selected)
+            .first<{ date: string | null }>()
+        )?.date ?? null);
+  if (date === null)
+    return { date: null, today, timeZone: CAMPUS_TIME_ZONE, classes: [] };
   const rows = await db
-    .prepare(`${localizedPlanSql(language)} WHERE p.month=?`)
+    .prepare(
+      `${localizedPlanSql(language)} WHERE p.month=? AND p.status='published'`,
+    )
     .bind(date.slice(0, 7))
     .all<PlanRow>();
   const plans = rows.results.map(decode);
@@ -155,7 +184,7 @@ export async function highlights(db: D1Database, url: URL) {
     date,
     today,
     timeZone: CAMPUS_TIME_ZONE,
-    classes: CLASSES.map((c) =>
+    classes: CLASSES.filter((c) => !selected || c.id === selected).map((c) =>
       selectHighlight(
         c.id,
         date,

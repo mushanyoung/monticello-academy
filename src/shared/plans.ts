@@ -137,7 +137,7 @@ export interface ClassHighlight {
   translationStatus?: TranslationStatus;
 }
 export interface Highlights {
-  date: string;
+  date: string | null;
   today: string;
   timeZone: string;
   classes: ClassHighlight[];

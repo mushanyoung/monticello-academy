@@ -2,7 +2,7 @@
 
 现已收到三个班、五个月的 15 份课程 PDF，后续提取规则以实际版式为准。样本和中间产物仅保存在忽略的本地目录；公开文档仅记录结构规律与操作方法。
 
-课程按班级、月份、具体校园日期组织，保留主题、活动、注意事项和来源。每天使用 America/Los_Angeles 日期查询，支持明天；无已整理数据需明确提示。
+课程按班级、月份、具体校园日期组织，保留主题、活动、注意事项和来源。每天使用 America/Los_Angeles 日期查询；“明天”查找今天之后下一个已列出日程的日期，可跨周末、月份和年份。没有后续日期时明确提示尚无安排。
 
 OpenAI key 使用 Workers 的 `OPENAI_API_KEY` Secret 管理，导入和轮换见 `docs/operations.md`。模型 ID 已核实为 gpt-6.1-terra。提取结果经过结构校验，保留来源页码、原文差异与历史版本。
 
@@ -12,7 +12,9 @@ OpenAI key 使用 Workers 的 `OPENAI_API_KEY` Secret 管理，导入和轮换�
 
 POST `/api/plans` 需要 IMPORT_TOKEN，并验证来源邮件已关联同一班级；每班每月一份当前计划，所有不同文档的 revision 内容保留在 D1。本项目没有人工审批状态：技术校验成功即发布，原文矛盾的各个说法与来源一起展示。draft 输入被拒绝，数据库触发器也禁止审批状态。
 
-GET `/api/plans?class=&month=` 只列已发布计划；GET `/api/highlights?date=YYYY-MM-DD` 区分未收到计划、当天未列出、已准备三种状态。按请求日期读取，跨月明天自然查询下个月，无需 cron 预生成；缺数据不推断放假或无注意事项。
+GET `/api/plans?class=&month=` 只列已发布计划；GET `/api/highlights?date=YYYY-MM-DD&class=` 区分未收到计划、当天未列出、已准备三种状态。按请求日期读取，无需 cron 预生成；缺数据不推断放假或无注意事项。
+
+GET `/api/highlights?after=YYYY-MM-DD&class=` 返回严格晚于 after 的最早已入库日期及当天提醒；after 与 date 不能同时传入。筛选单班时仅按该班查找，全部班级时取任一班有日程的最早日期，所有卡片共用该日期。明确列出的停课通知和周末活动也算信息，不按星期推断；只有月度提醒或每周目标、没有每日条目的计划不产生日期。找不到时返回 `date: null, classes: []`。日期选择基于原始已发布计划，再读取对应语言的完整内容；没有 120 条列表上限，不需新增迁移或模型调用。
 
 模型固定为 GPT 6.1 Terra（`gpt-6.1-terra`）；`GET /api/admin/ai` 使用 IMPORT_TOKEN 鉴权，由 Worker 用已有 OPENAI_API_KEY Secret 核实模型访问权限，只返回模型 ID 与可用状态。无需将密钥从 Cloudflare 导出。自动处理流程见下文。
 

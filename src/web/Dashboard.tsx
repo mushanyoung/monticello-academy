@@ -174,8 +174,14 @@ export function Dashboard({
       document.removeEventListener("visibilitychange", update);
     };
   }, []);
-  const date = tomorrow ? addDays(today, 1) : today;
-  const daily = useApi<Highlights>(`/api/highlights?date=${date}`);
+  const daily = useApi<Highlights>(
+    `/api/highlights?${new URLSearchParams({
+      [tomorrow ? "after" : "date"]: today,
+      class: selected,
+    })}`,
+  );
+  const date = tomorrow ? daily.data?.date : today;
+  const skipsDays = Boolean(tomorrow && date && date !== addDays(today, 1));
   const mail = useApi<MailPage>(
     `/api/mail?${new URLSearchParams({ class: selected })}`,
   );
@@ -197,31 +203,52 @@ export function Dashboard({
               href={href({ class: selected, day: "tomorrow" })}
               aria-current={tomorrow ? "date" : undefined}
             >
-              {t("Tomorrow")}
+              {t(skipsDays ? "Next up" : "Tomorrow")}
             </a>
           </div>
         </div>
-        <div className="date-line">
-          <Icon name="calendar" size={16} />
-          <span>
-            {displayDate(date, {
-              weekday: "long",
-              month: "long",
-              day: "numeric",
-              year: "numeric",
-            })}
-          </span>
-          <span className="time-zone">{t("· Monroe campus time")}</span>
-        </div>
+        {date && (
+          <div className="date-line">
+            <Icon name="calendar" size={16} />
+            <time dateTime={date}>
+              {displayDate(date, {
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </time>
+            <span className="time-zone">{t("· Monroe campus time")}</span>
+          </div>
+        )}
+        {skipsDays && (
+          <p className="next-day-note">
+            {t("Showing the next date with an entry in the lesson plans.")}
+          </p>
+        )}
         <ClassFilters view="today" selected={selected} />
         {daily.data ? (
-          <div className="day-grid">
-            {daily.data.classes
-              .filter((c) => selected === "all" || c.classId === selected)
-              .map((c) => (
+          daily.data.date === null ? (
+            <Empty title={t("No upcoming entries yet.")} icon="calendar">
+              <p>
+                {t(
+                  "The archived lesson plans have no later dates for these classrooms. Check classroom mail for updates.",
+                )}
+              </p>
+              <a
+                className="text-link"
+                href={href({ view: "mail", class: selected })}
+              >
+                {t("Visit classroom mail")}
+              </a>
+            </Empty>
+          ) : (
+            <div className="day-grid">
+              {daily.data.classes.map((c) => (
                 <DayCard key={c.classId} highlight={c} />
               ))}
-          </div>
+            </div>
+          )
         ) : (
           <LoadState error={daily.error} retry={daily.retry} />
         )}

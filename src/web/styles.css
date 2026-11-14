@@ -292,6 +292,11 @@ h2 {
 .time-zone {
   color: #9c919e;
 }
+.next-day-note {
+  margin: 8px 0 0;
+  font-size: var(--text-small);
+  color: #817587;
+}
 .class-filters {
   display: flex;
   align-items: center;
@@ -521,12 +526,12 @@ h2 {
 .recent-item p {
   font-size: var(--text-small);
   color: #8b7e90;
+  overflow-wrap: anywhere;
 }
 .recent-item :where(p) span {
   color: #a093a3;
 }
 .recent-item:where(:hover) h3 {
-  overflow-wrap: anywhere;
   color: #76518e;
 }
 .mail-symbol {

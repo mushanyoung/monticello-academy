@@ -14,6 +14,12 @@ export const messages = {
   "The day ahead": "今日小计划",
   Today: "今天",
   Tomorrow: "明天",
+  "Next up": "下次安排",
+  "Showing the next date with an entry in the lesson plans.":
+    "已显示课程计划中下一个有信息的日期。",
+  "No upcoming entries yet.": "还没有后续日期的安排。",
+  "The archived lesson plans have no later dates for these classrooms. Check classroom mail for updates.":
+    "已入库的课程计划中，这些班级还没有后续日期的信息，请查看班级邮件中的最新消息。",
   "· Monroe campus time": "· Monroe 校区时间",
   "Fresh from the mailbox": "最近收到的邮件",
   "All mail": "全部邮件",
