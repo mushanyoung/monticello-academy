@@ -128,10 +128,11 @@ test("paginates long mail lists without widening the viewport in either language
   for (let index = 0; index < 31; index++) {
     const response = await request.post("/api/import", {
       headers,
-      data: fixtureMail(`${key}-${index}`).replace(
-        /^From:[^\r\n]*/,
-        `From: ${sender}`,
-      ),
+      data: fixtureMail(
+        `${key}-${index}`,
+        undefined,
+        "Fri, 31 Dec 2094 09:00:00 -0800",
+      ).replace(/^From:[^\r\n]*/, `From: ${sender}`),
     });
     expect(response.status()).toBe(201);
   }
@@ -170,6 +171,15 @@ test("paginates long mail lists without widening the viewport in either language
         .locator(".mail-item")
         .evaluateAll((items) => items.map((item) => item.getAttribute("href"))),
     ).toEqual(first);
+    await page.goto("/?class=sunshine");
+    await expect(page.locator(".recent-item").first()).toContainText(sender);
+    expect(
+      await page.evaluate(
+        () =>
+          document.documentElement.scrollWidth <=
+          document.documentElement.clientWidth,
+      ),
+    ).toBe(true);
   }
 });
 test("shows load failure and retries without an endless loading state", async ({

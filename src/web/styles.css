@@ -526,6 +526,7 @@ h2 {
   color: #a093a3;
 }
 .recent-item:where(:hover) h3 {
+  overflow-wrap: anywhere;
   color: #76518e;
 }
 .mail-symbol {
