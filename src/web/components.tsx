@@ -3,6 +3,7 @@ import { CLASSES, type ClassId } from "../shared/classes";
 import { href } from "./api";
 import { Icon } from "./art";
 import { useI18n } from "./i18n";
+import { useNavigation } from "./navigation";
 export function ClassBadge({ id }: { id: ClassId }) {
   const { className } = useI18n();
   const room = CLASSES.find((c) => c.id === id);
@@ -23,17 +24,23 @@ export function ClassFilters({
   month?: string;
 }) {
   const { t, className } = useI18n();
-  const current = new URLSearchParams(window.location.search);
+  const { search, pending, follow } = useNavigation();
+  const current = new URLSearchParams(search);
   const context = {
     q: view === "mail" ? current.get("q") || undefined : undefined,
     sort: view === "mail" ? current.get("sort") || undefined : undefined,
     day: view === "today" ? current.get("day") || undefined : undefined,
   };
   return (
-    <nav className="class-filters" aria-label={t("Filter by classroom")}>
+    <nav
+      className="class-filters"
+      aria-label={t("Filter by classroom")}
+      aria-busy={pending}
+    >
       <a
         className={selected === "all" ? "selected" : ""}
         href={href({ ...context, view, month })}
+        onClick={follow}
         aria-current={selected === "all" ? "true" : undefined}
       >
         {t("All classrooms")}
@@ -43,6 +50,7 @@ export function ClassFilters({
           key={c.id}
           className={selected === c.id ? "selected" : ""}
           href={href({ ...context, view, class: c.id, month })}
+          onClick={follow}
           aria-current={selected === c.id ? "true" : undefined}
         >
           <span className={`dot ${c.color}`} />
@@ -57,7 +65,7 @@ export function LoadState({
   retry,
 }: {
   error: string | null;
-  retry: () => void;
+  retry?: () => void;
 }) {
   const { t } = useI18n();
   return (

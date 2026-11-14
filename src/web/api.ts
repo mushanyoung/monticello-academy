@@ -1,48 +1,50 @@
-import { useEffect, useState } from "react";
+import { createContext, use, useState } from "react";
 import { useLanguage } from "./language";
+
+type ApiResult = { data: unknown; error: string | null };
+export type ApiRequests = Map<string, Promise<ApiResult>>;
+export const ApiRequestsContext = createContext<ApiRequests | null>(null);
+
+async function load(url: string, reload = false): Promise<ApiResult> {
+  try {
+    const response = await fetch(url, {
+      cache: reload ? "reload" : "default",
+    });
+    const result = await response.json();
+    if (!response.ok)
+      throw new Error(
+        result.error || "We couldn't open the notebook. Please try again.",
+      );
+    return { data: result, error: null };
+  } catch (error) {
+    return {
+      data: null,
+      error: error instanceof Error ? error.message : "Unable to load.",
+    };
+  }
+}
+
 export function useApi<T>(sourceUrl: string) {
   const { language } = useLanguage();
+  const requests = use(ApiRequestsContext);
+  if (!requests) throw new Error("Missing API request scope");
+  const [, refresh] = useState(0);
   const localized = new URL(sourceUrl, window.location.origin);
   localized.searchParams.set("lang", language);
   const url = `${localized.pathname}${localized.search}`;
-  const [state, setState] = useState<{
-    url: string;
-    data: T | null;
-    error: string | null;
-  }>({ url: "", data: null, error: null });
-  const [version, setVersion] = useState(0);
-  useEffect(() => {
-    const controller = new AbortController();
-    setState({ url, data: null, error: null });
-    async function load() {
-      try {
-        const response = await fetch(url, {
-          signal: controller.signal,
-          cache: version > 0 ? "reload" : "default",
-        });
-        const result = await response.json();
-        if (!response.ok)
-          throw new Error(
-            result.error || "We couldn't open the notebook. Please try again.",
-          );
-        if (!controller.signal.aborted)
-          setState({ url, data: result, error: null });
-      } catch (error) {
-        if (!controller.signal.aborted)
-          setState({
-            url,
-            data: null,
-            error: error instanceof Error ? error.message : "Unable to load.",
-          });
-      }
-    }
-    void load();
-    return () => controller.abort();
-  }, [url, version]);
+  let request = requests.get(url);
+  if (!request) {
+    request = load(url);
+    requests.set(url, request);
+  }
+  const result = use(request);
   return {
-    data: state.url === url ? state.data : null,
-    error: state.url === url ? state.error : null,
-    retry: () => setVersion((v) => v + 1),
+    data: result.data as T | null,
+    error: result.error,
+    retry: () => {
+      requests.set(url, load(url, true));
+      refresh((version) => version + 1);
+    },
   };
 }
 export function href(params: Record<string, string | number | undefined>) {
