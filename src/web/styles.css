@@ -78,6 +78,7 @@ svg {
   flex-shrink: 0;
 }
 .app {
+  position: relative;
   min-height: 100dvh;
 }
 .sidebar {
@@ -1509,7 +1510,7 @@ h2 {
 }
 
 .language-switch {
-  position: fixed;
+  position: absolute;
   z-index: 50;
   top: 12px;
   right: 24px;

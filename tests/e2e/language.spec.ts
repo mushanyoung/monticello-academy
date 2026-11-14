@@ -76,6 +76,17 @@ test("switches every view to Chinese, remembers the client choice and keeps a us
   await expect(
     page.getByRole("heading", { name: "Lesson plans", level: 1 }),
   ).toBeVisible();
+  for (const language of ["English", "中文"]) {
+    await page.getByRole("button", { name: language, exact: true }).click();
+    await expect(page.locator(".plan").first()).toBeVisible();
+    await page.evaluate(() =>
+      window.scrollTo(0, document.documentElement.scrollHeight),
+    );
+    await expect(page.locator(".language-switch")).not.toBeInViewport();
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await expect(page.locator(".language-switch")).toBeInViewport();
+  }
+  await page.getByRole("button", { name: "English", exact: true }).click();
   expect(
     await page.evaluate(() => localStorage.getItem("monticello-language")),
   ).toBe("en");
