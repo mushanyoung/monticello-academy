@@ -48,12 +48,18 @@ test("archives concurrent list deliveries once and searches/downloads attachment
     "scavenger hunt",
     "teacher@school.example.com",
   ]) {
-    const page = await (
-      await request.get(`/api/mail?q=${encodeURIComponent(q)}`)
-    ).json();
-    expect(page.items.some((item: { id: string }) => item.id === id)).toBe(
-      true,
-    );
+    const foundIds: string[] = [];
+    let totalPages = 1;
+    for (let number = 1; number <= totalPages; number++) {
+      const response = await request.get(
+        `/api/mail?q=${encodeURIComponent(q)}&page=${number}`,
+      );
+      expect(response.status()).toBe(200);
+      const page = await response.json();
+      totalPages = Math.ceil(page.total / page.pageSize);
+      foundIds.push(...page.items.map((item: { id: string }) => item.id));
+    }
+    expect(foundIds).toContain(id);
   }
 });
 test("enforces imports, validates input, orders dates, and treats search literally", async ({
