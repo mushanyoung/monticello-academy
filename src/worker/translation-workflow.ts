@@ -11,11 +11,35 @@ import {
 import { sendLessonAlerts } from "./lesson-alerts";
 import { LessonError, lessonRequest } from "./openai";
 import { prepareTranslation, publishTranslation } from "./translation-data";
-import { failTranslation, translationJob } from "./translation-jobs";
+import {
+  failTranslation,
+  type TranslationJob,
+  translationJob,
+} from "./translation-jobs";
 import {
   readTranslatedSegments,
   translationRequestBody,
 } from "./translation-model";
+
+const activeJob =
+  "EXISTS(SELECT 1 FROM translation_jobs WHERE id=? AND attempt=? AND status='running')";
+async function savePart(
+  env: Env,
+  job: TranslationJob,
+  part: number,
+  segments: TranslatedSegment[],
+) {
+  const key = `translations/${job.id}/${job.attempt}/part-${part}.json`;
+  await env.MAIL_BUCKET.put(key, JSON.stringify(segments));
+  await env.DB.batch([
+    env.DB.prepare(
+      `UPDATE translation_parts SET result_key=? WHERE job_id=? AND part=? AND ${activeJob}`,
+    ).bind(key, job.id, part, job.id, job.attempt),
+    env.DB.prepare(
+      "UPDATE translation_jobs SET updated_at=? WHERE id=? AND attempt=? AND status='running'",
+    ).bind(new Date().toISOString(), job.id, job.attempt),
+  ]);
+}
 
 export class TranslationWorkflow extends WorkflowEntrypoint<
   Env,
@@ -56,19 +80,20 @@ export class TranslationWorkflow extends WorkflowEntrypoint<
               "The saved translation input is unavailable.",
             );
           const template = await object.json<TranslationTemplate>();
-          await this.env.DB.prepare(
-            "UPDATE translation_jobs SET status='running',updated_at=? WHERE id=? AND attempt=?",
+          const claim = await this.env.DB.prepare(
+            "UPDATE translation_jobs SET input_key=?,status='running',updated_at=? WHERE id=? AND attempt=? AND status IN ('queued','running')",
           )
-            .bind(new Date().toISOString(), job.id, job.attempt)
+            .bind(inputKey, new Date().toISOString(), job.id, job.attempt)
             .run();
+          if (!claim.meta.changes) return null;
           return {
             inputKey,
             parts: translationBatches(template.segments).length,
           };
         },
       );
+      if (!prepared) return;
       for (let part = 0; part < prepared.parts; part++) {
-        const resultKey = `translations/${job.id}/part-${part}.json`;
         const submitted = await step.do(
           `submit translation part ${part}`,
           retry,
@@ -94,23 +119,21 @@ export class TranslationWorkflow extends WorkflowEntrypoint<
               "/responses",
               translationRequestBody(batch),
             );
-            await this.env.DB.prepare(
-              "INSERT INTO translation_parts(job_id,part,response_id) VALUES(?,?,?) ON CONFLICT(job_id,part) DO UPDATE SET response_id=excluded.response_id",
+            const recorded = await this.env.DB.prepare(
+              `INSERT INTO translation_parts(job_id,part,response_id) SELECT ?,?,? WHERE ${activeJob}
+               ON CONFLICT(job_id,part) DO UPDATE SET response_id=excluded.response_id`,
             )
-              .bind(job.id, part, response.id)
+              .bind(job.id, part, response.id, job.id, job.attempt)
               .run();
+            if (!recorded.meta.changes) return { id: "", status: "retired" };
             if (response.status === "completed") {
               const result = readTranslatedSegments(response, batch);
-              await this.env.MAIL_BUCKET.put(resultKey, JSON.stringify(result));
-              await this.env.DB.prepare(
-                "UPDATE translation_parts SET result_key=? WHERE job_id=? AND part=?",
-              )
-                .bind(resultKey, job.id, part)
-                .run();
+              await savePart(this.env, job, part, result);
             }
             return { id: response.id, status: response.status };
           },
         );
+        if (submitted.status === "retired") return;
         let status = submitted.status;
         for (
           let poll = 0;
@@ -136,21 +159,13 @@ export class TranslationWorkflow extends WorkflowEntrypoint<
                 const batch = translationBatches(template.segments)[part];
                 if (!batch) throw new Error("Missing part");
                 const result = readTranslatedSegments(response, batch);
-                await this.env.MAIL_BUCKET.put(
-                  resultKey,
-                  JSON.stringify(result),
-                );
+                await savePart(this.env, job, part, result);
+              } else
                 await this.env.DB.prepare(
-                  "UPDATE translation_parts SET result_key=? WHERE job_id=? AND part=?",
+                  "UPDATE translation_jobs SET updated_at=? WHERE id=? AND attempt=? AND status='running'",
                 )
-                  .bind(resultKey, job.id, part)
+                  .bind(new Date().toISOString(), job.id, job.attempt)
                   .run();
-              }
-              await this.env.DB.prepare(
-                "UPDATE translation_jobs SET updated_at=? WHERE id=? AND attempt=?",
-              )
-                .bind(new Date().toISOString(), job.id, job.attempt)
-                .run();
               return response.status;
             },
           );
@@ -172,10 +187,17 @@ export class TranslationWorkflow extends WorkflowEntrypoint<
           if (!object) throw new Error("Missing translation input");
           const template = await object.json<TranslationTemplate>();
           const segments: TranslatedSegment[] = [];
-          for (let part = 0; part < prepared.parts; part++) {
-            const result = await this.env.MAIL_BUCKET.get(
-              `translations/${job.id}/part-${part}.json`,
-            );
+          const saved = await this.env.DB.prepare(
+            "SELECT part,result_key FROM translation_parts WHERE job_id=? ORDER BY part",
+          )
+            .bind(job.id)
+            .all<{ part: number; result_key: string | null }>();
+          if (saved.results.length !== prepared.parts)
+            throw new Error("Missing translation parts");
+          for (const [part, row] of saved.results.entries()) {
+            if (row.part !== part || !row.result_key)
+              throw new Error("Incomplete translation part");
+            const result = await this.env.MAIL_BUCKET.get(row.result_key);
             if (!result) throw new Error("Missing translation result");
             segments.push(...(await result.json<TranslatedSegment[]>()));
           }

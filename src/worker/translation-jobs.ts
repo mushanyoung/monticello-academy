@@ -27,6 +27,13 @@ export async function translationJob(env: Env, id: string) {
   if (!job) throw new HttpError(404, "Translation job not found.");
   return job;
 }
+export const NEWER_TRANSLATOR_EXISTS = `EXISTS(SELECT 1 FROM translation_jobs newer
+  WHERE newer.kind=j.kind AND newer.entity_id=j.entity_id AND newer.source_hash=j.source_hash
+  AND CAST(newer.translator_version AS INTEGER)>CAST(j.translator_version AS INTEGER))`;
+// A restored revision can already have a job while its two public rows belong to another revision.
+const missingPlanPublication = `(NOT ${NEWER_TRANSLATOR_EXISTS} AND (j.status='superseded' OR (j.status='completed' AND
+  (SELECT count(*) FROM plan_localizations l WHERE l.plan_id=j.entity_id
+   AND l.source_document=j.source_document)<2)))`;
 export async function enqueueTranslations(
   env: Env,
   kind: "mail" | "plan",
@@ -56,10 +63,18 @@ export async function enqueueTranslations(
     }),
   );
   const now = new Date().toISOString();
+  const onConflict =
+    kind === "plan"
+      ? `DO UPDATE SET status='queued',attempt=j.attempt+1,workflow_id=j.id || '-' || (j.attempt+1),
+       updated_at=excluded.updated_at,notify=excluded.notify
+       WHERE ${missingPlanPublication} AND EXISTS(SELECT 1 FROM lesson_plans p
+       WHERE p.id=j.entity_id AND p.document=j.source_document)`
+      : "DO NOTHING";
   await env.DB.batch(
     jobs.map((job) =>
       env.DB.prepare(
-        "INSERT OR IGNORE INTO translation_jobs(id,kind,entity_id,source_hash,source_document,translator_version,workflow_id,status,notify,created_at,updated_at) VALUES(?,?,?,?,?,?,?,'queued',?,?,?)",
+        `INSERT INTO translation_jobs AS j(id,kind,entity_id,source_hash,source_document,translator_version,workflow_id,status,notify,created_at,updated_at)
+         VALUES(?,?,?,?,?,?,?,'queued',?,?,?) ON CONFLICT(id) ${onConflict}`,
       ).bind(
         job.jobId,
         kind,
@@ -75,7 +90,7 @@ export async function enqueueTranslations(
     ),
   );
   const obsolete = await env.DB.prepare(
-    `SELECT * FROM translation_jobs WHERE kind=? AND translator_version<>? AND entity_id IN (${ids.map(() => "?").join(",")}) AND status IN ('queued','running')`,
+    `SELECT * FROM translation_jobs WHERE kind=? AND CAST(translator_version AS INTEGER)<CAST(? AS INTEGER) AND entity_id IN (${ids.map(() => "?").join(",")}) AND status IN ('queued','running')`,
   )
     .bind(kind, TRANSLATION_VERSION, ...ids)
     .all<TranslationJob>();
@@ -191,6 +206,10 @@ export async function retryTranslation(env: Env, id: string) {
   const attempt = job.attempt + 1;
   const results = await env.DB.batch([
     env.DB.prepare(
+      `UPDATE translation_parts SET response_id=NULL WHERE job_id=? AND result_key IS NULL AND EXISTS(
+       SELECT 1 FROM translation_jobs WHERE id=translation_parts.job_id AND status='failed' AND attempt=?)`,
+    ).bind(id, job.attempt),
+    env.DB.prepare(
       "UPDATE translation_jobs SET status='queued',attempt=?,workflow_id=?,error_code=NULL,error_message=NULL,updated_at=? WHERE id=? AND status='failed' AND attempt=?",
     ).bind(
       attempt,
@@ -199,11 +218,8 @@ export async function retryTranslation(env: Env, id: string) {
       id,
       job.attempt,
     ),
-    env.DB.prepare(
-      "UPDATE translation_parts SET response_id=NULL WHERE job_id=? AND result_key IS NULL",
-    ).bind(id),
   ]);
-  if (!results[0]?.meta.changes)
+  if (!results[1]?.meta.changes)
     throw new HttpError(409, "This translation was already retried.");
   await dispatchTranslation(env, await translationJob(env, id));
   return { id, attempt };
@@ -214,7 +230,8 @@ export async function reconcileTranslations(env: Env) {
     const table = kind === "mail" ? "messages" : "lesson_plans",
       column = kind === "mail" ? "raw_key" : "document";
     const rows = await env.DB.prepare(
-      `SELECT s.id FROM ${table} s WHERE NOT EXISTS(SELECT 1 FROM translation_jobs j WHERE j.kind=? AND j.entity_id=s.id AND j.source_document=s.${column} AND j.translator_version=?) LIMIT 5`,
+      `SELECT s.id FROM ${table} s WHERE NOT EXISTS(SELECT 1 FROM translation_jobs j WHERE j.kind=? AND j.entity_id=s.id AND j.source_document=s.${column} AND j.translator_version=?
+       ${kind === "plan" ? `AND NOT ${missingPlanPublication}` : ""}) LIMIT 5`,
     )
       .bind(kind, TRANSLATION_VERSION)
       .all<{ id: string }>();

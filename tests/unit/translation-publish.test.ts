@@ -103,7 +103,8 @@ it("prevents an older translator from overwriting a newer bilingual publication"
       id: "c".repeat(64),
       translator_version: "2",
       workflow_id: "new",
-      created_at: "2026-11-13T00:01:00Z",
+      // Deployment overlap can enqueue both versions in the same millisecond.
+      created_at: now,
     };
     for (const value of [job, newer])
       sqlite
@@ -127,20 +128,36 @@ it("prevents an older translator from overwriting a newer bilingual publication"
       en: segment.text,
       zh: `新版：${segment.text}`,
     }));
-    expect(await publishTranslation(env, newer, template, segments)).toBe(
-      "completed",
+    const status = (id: string) =>
+      sqlite.prepare("SELECT status FROM translation_jobs WHERE id=?").get(id)
+        ?.status;
+    sqlite.exec(`CREATE TRIGGER reject_second_language BEFORE INSERT ON plan_localizations
+      WHEN NEW.language='zh' BEGIN SELECT RAISE(ABORT, 'test write failure'); END`);
+    await expect(
+      publishTranslation(env, newer, template, segments),
+    ).rejects.toThrow("test write failure");
+    expect(status(newer.id)).toBe("running");
+    expect(sqlite.prepare("SELECT * FROM plan_localizations").all()).toEqual(
+      [],
     );
-    expect(
-      await publishTranslation(
-        env,
-        job,
-        template,
-        segments.map((segment) => ({
-          ...segment,
-          zh: segment.zh.replace("新版：", "旧版："),
-        })),
-      ),
-    ).toBe("superseded");
+    sqlite.exec("DROP TRIGGER reject_second_language");
+    // A callback from another attempt has the same source and translator version.
+    await publishTranslation(env, { ...newer, attempt: 0 }, template, segments);
+    expect(sqlite.prepare("SELECT * FROM plan_localizations").all()).toEqual(
+      [],
+    );
+    expect(status(newer.id)).toBe("running");
+    await publishTranslation(env, newer, template, segments);
+    expect(status(newer.id)).toBe("completed");
+    await publishTranslation(
+      env,
+      job,
+      template,
+      segments.map((segment) => ({
+        ...segment,
+        zh: segment.zh.replace("新版：", "旧版："),
+      })),
+    );
     const rows = sqlite
       .prepare(
         "SELECT language,document FROM plan_localizations ORDER BY language",
@@ -151,11 +168,7 @@ it("prevents an older translator from overwriting a newer bilingual publication"
     expect(JSON.parse(String(rows[1]?.document)).title).toBe(
       `新版：${plan.title}`,
     );
-    expect(
-      sqlite
-        .prepare("SELECT status FROM translation_jobs WHERE id=?")
-        .get(job.id)?.status,
-    ).toBe("superseded");
+    expect(status(job.id)).toBe("superseded");
   } finally {
     sqlite.close();
   }

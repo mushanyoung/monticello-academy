@@ -7,8 +7,11 @@ import {
   type TranslationTemplate,
   translationTemplate,
 } from "../shared/translation";
-import { plainText } from "./mail";
-import type { TranslationJob } from "./translation-jobs";
+import { plainText, sha256 } from "./mail";
+import {
+  NEWER_TRANSLATOR_EXISTS,
+  type TranslationJob,
+} from "./translation-jobs";
 
 export const localizedMailSchema = z
   .object({
@@ -60,11 +63,6 @@ export async function prepareTranslation(env: Env, job: TranslationJob) {
   await env.MAIL_BUCKET.put(key, JSON.stringify(template), {
     httpMetadata: { contentType: "application/json" },
   });
-  await env.DB.prepare(
-    "UPDATE translation_jobs SET input_key=?,status='running',updated_at=? WHERE id=? AND attempt=?",
-  )
-    .bind(key, new Date().toISOString(), job.id, job.attempt)
-    .run();
   return key;
 }
 export async function publishTranslation(
@@ -74,29 +72,39 @@ export async function publishTranslation(
   segments: TranslatedSegment[],
 ) {
   const now = new Date().toISOString();
-  const statements: D1PreparedStatement[] = [];
+  const currentSource =
+    job.kind === "plan"
+      ? "SELECT 1 FROM lesson_plans WHERE id=j.entity_id AND document=j.source_document"
+      : "SELECT 1 FROM messages WHERE id=j.entity_id AND raw_key=j.source_document";
+  const statements = [
+    env.DB.prepare(`UPDATE translation_jobs AS j SET status='superseded',updated_at=?
+      WHERE id=? AND attempt=? AND status='running'
+      AND (NOT EXISTS(${currentSource}) OR ${NEWER_TRANSLATOR_EXISTS})`).bind(
+      now,
+      job.id,
+      job.attempt,
+    ),
+  ];
+  const activeAttempt =
+    "FROM translation_jobs WHERE id=? AND attempt=? AND status='running'";
   for (const language of ["en", "zh"] as const) {
     const translated = renderTranslation(template, segments, language);
     if (job.kind === "plan") {
       const document = JSON.stringify(planSchema.parse(translated));
       statements.push(
         env.DB.prepare(`INSERT INTO plan_localizations(plan_id,language,source_document,document,updated_at)
-        SELECT id,?,?,?,? FROM lesson_plans WHERE id=? AND document=? AND NOT EXISTS(SELECT 1 FROM translation_jobs newer WHERE newer.kind='plan' AND newer.entity_id=? AND newer.source_document=? AND newer.created_at>?)
+        SELECT entity_id,?,source_document,?,? ${activeAttempt}
         ON CONFLICT(plan_id,language) DO UPDATE SET source_document=excluded.source_document,document=excluded.document,updated_at=excluded.updated_at`).bind(
           language,
-          job.source_document,
           document,
           now,
-          job.entity_id,
-          job.source_document,
-          job.entity_id,
-          job.source_document,
-          job.created_at,
+          job.id,
+          job.attempt,
         ),
       );
     } else {
       const mail = localizedMailSchema.parse(translated);
-      const htmlKey = `translations/${job.id}/${language}.html`;
+      const htmlKey = `translations/${job.id}/${language}-${await sha256(mail.html)}.html`;
       await env.MAIL_BUCKET.put(htmlKey, mail.html, {
         httpMetadata: { contentType: "text/html; charset=utf-8" },
       });
@@ -110,33 +118,25 @@ export async function publishTranslation(
         .toLowerCase();
       statements.push(
         env.DB.prepare(`INSERT INTO mail_localizations(message_id,language,source_document,subject,body_text,html_key,attachments,search_text,updated_at)
-        SELECT id,?,?,?,?,?,?,?,? FROM messages WHERE id=? AND raw_key=? AND NOT EXISTS(SELECT 1 FROM translation_jobs newer WHERE newer.kind='mail' AND newer.entity_id=? AND newer.source_document=? AND newer.created_at>?)
+        SELECT entity_id,?,source_document,?,?,?,?,?,? ${activeAttempt}
         ON CONFLICT(message_id,language) DO UPDATE SET source_document=excluded.source_document,subject=excluded.subject,body_text=excluded.body_text,html_key=excluded.html_key,attachments=excluded.attachments,search_text=excluded.search_text,updated_at=excluded.updated_at`).bind(
           language,
-          job.source_document,
           mail.subject,
           mail.body_text,
           htmlKey,
           JSON.stringify(mail.attachments),
           search,
           now,
-          job.entity_id,
-          job.source_document,
-          job.entity_id,
-          job.source_document,
-          job.created_at,
+          job.id,
+          job.attempt,
         ),
       );
     }
   }
-  const results = await env.DB.batch(statements);
-  const status = results.every((result) => result.meta.changes > 0)
-    ? "completed"
-    : "superseded";
-  await env.DB.prepare(
-    "UPDATE translation_jobs SET status=?,updated_at=? WHERE id=? AND attempt=? AND status='running'",
-  )
-    .bind(status, now, job.id, job.attempt)
-    .run();
-  return status;
+  statements.push(
+    env.DB.prepare(
+      "UPDATE translation_jobs SET status='completed',updated_at=? WHERE id=? AND attempt=? AND status='running'",
+    ).bind(now, job.id, job.attempt),
+  );
+  await env.DB.batch(statements);
 }

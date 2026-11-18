@@ -249,6 +249,48 @@ test("translates current plans and daily details without dropping conflicting so
     path: info.outputPath("translated-highlight-en.png"),
     fullPage: true,
   });
+  // Restore both a superseded revision and one whose previous publication was overwritten.
+  for (const [title, zhTitle] of [
+    ["Earlier source title", "译文：Earlier source title"],
+    [plan.title, "发现的一个月"],
+  ] as const) {
+    expect(
+      (
+        await request.post("/api/plans", { headers, data: { ...plan, title } })
+      ).status(),
+    ).toBe(201);
+    expect(
+      (
+        await request.post("/api/admin/translations/reconcile", { headers })
+      ).ok(),
+    ).toBe(true);
+    for (const [language, expected] of [
+      ["zh", zhTitle],
+      ["en", title],
+    ]) {
+      await expect
+        .poll(
+          async () => {
+            const data = await (
+              await request.get(
+                `/api/plans?month=${plan.month}&lang=${language}`,
+              )
+            ).json();
+            return data.items[0];
+          },
+          { timeout: 15000 },
+        )
+        .toMatchObject({ title: expected, translationStatus: "ready" });
+    }
+  }
+  const restored = (await jobs(request)).filter(
+    (job) => job.entity_id === entity,
+  );
+  expect(restored).toHaveLength(2);
+  expect(restored.map((job) => [job.status, job.attempt])).toEqual([
+    ["completed", 2],
+    ["completed", 2],
+  ]);
 });
 test("notifies translation failures, protects diagnostics, and retries to save both languages", async ({
   request,
