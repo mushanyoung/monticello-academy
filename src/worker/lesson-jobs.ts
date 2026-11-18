@@ -3,7 +3,7 @@ import {
   LESSON_PARSER_VERSION,
 } from "../shared/lesson-extraction";
 import { HttpError } from "./errors";
-import { queueLessonAlert, sendLessonAlerts } from "./lesson-alerts";
+import { recordJobFailure, sendLessonAlerts } from "./lesson-alerts";
 import { lessonConfig } from "./lesson-config";
 import { sha256 } from "./mail";
 
@@ -123,25 +123,17 @@ async function dispatchLesson(env: Env, job: LessonJob) {
     }
   }
 }
-export async function notifyLessonProblem(
-  env: Env,
-  job: LessonJob,
-  summary: string,
-) {
-  if (!job.notify) return;
+export function lessonNotice(env: Env, job: LessonJob, summary: string) {
   const config = lessonConfig(env);
   const url = new URL(config.siteUrl);
   url.search = new URLSearchParams({
     view: "mail",
     id: job.message_id,
   }).toString();
-  await queueLessonAlert(
-    env,
-    `${job.id}-${job.attempt}`,
-    job.id,
-    "课程计划处理通知 · Lesson plan update",
-    `文件：${job.filename}\n\n${summary}\n\n原始邮件与 PDF：${url}\n\n任务：${job.id}\n原文中的不同说法会全部展示，无需审批。技术故障会保留原件，可在修复原因后重试。`,
-  );
+  return {
+    subject: "课程计划处理通知 · Lesson plan update",
+    body: `文件 / File: ${job.filename}\n\n${summary}\n\n原始邮件与 PDF / Source email and PDF: ${url}\n任务 / Job: ${job.id}`,
+  };
 }
 export async function failLesson(
   env: Env,
@@ -149,21 +141,14 @@ export async function failLesson(
   code: string,
   message: string,
 ) {
-  const updated = await env.DB.prepare(
-    "UPDATE lesson_jobs SET status='failed',error_code=?,error_message=?,updated_at=? WHERE id=? AND attempt=? AND status IN ('queued','running')",
-  )
-    .bind(code, message, new Date().toISOString(), job.id, job.attempt)
-    .run();
-  if (!updated.meta.changes) {
-    const current = await getLessonJob(env, job.id);
-    // A stale dispatcher must not report failure after another worker has published.
-    if (current.status !== "failed" || current.attempt !== job.attempt) return;
-  }
-  await notifyLessonProblem(
-    env,
-    job,
-    `自动解析或入库失败。系统已执行步骤重试。\n${message}\n错误代码：${code}`,
-  );
+  const notice = job.notify
+    ? lessonNotice(
+        env,
+        job,
+        `自动重试后仍无法完成课程处理。已保留原件。\nLesson processing failed after automatic retries. The original PDF remains available.\n${message}\n错误代码 / Error code: ${code}`,
+      )
+    : undefined;
+  await recordJobFailure(env, "lesson_jobs", job, code, message, notice);
 }
 export async function retryLesson(env: Env, id: string) {
   const job = await getLessonJob(env, id);

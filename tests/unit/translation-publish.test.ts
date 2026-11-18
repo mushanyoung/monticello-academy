@@ -1,53 +1,14 @@
-import { readdirSync, readFileSync } from "node:fs";
-import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 import { expect, it } from "vitest";
 import { translationTemplate } from "../../src/shared/translation";
 import { publishTranslation } from "../../src/worker/translation-data";
 import type { TranslationJob } from "../../src/worker/translation-jobs";
 import { fixturePlan } from "../fixtures/plan";
+import { d1Binding, migratedDatabase } from "./sqlite";
 
 it("prevents an older translator from overwriting a newer bilingual publication", async () => {
-  const sqlite = new DatabaseSync(":memory:");
+  const sqlite = migratedDatabase();
   try {
-    for (const name of readdirSync("migrations")
-      .filter((name) => name.endsWith(".sql"))
-      .sort())
-      sqlite.exec(readFileSync(`migrations/${name}`, "utf8"));
-    // Execute the production D1 SQL in SQLite; only the binding transport is adapted.
-    class Statement {
-      constructor(
-        readonly sql: string,
-        readonly values: SQLInputValue[] = [],
-      ) {}
-      bind(...values: SQLInputValue[]) {
-        return new Statement(this.sql, values);
-      }
-      run() {
-        return {
-          meta: {
-            changes: Number(
-              sqlite.prepare(this.sql).run(...this.values).changes,
-            ),
-          },
-        };
-      }
-    }
-    const env = {
-      DB: {
-        prepare: (sql: string) => new Statement(sql),
-        batch: async (statements: Statement[]) => {
-          sqlite.exec("BEGIN");
-          try {
-            const result = statements.map((statement) => statement.run());
-            sqlite.exec("COMMIT");
-            return result;
-          } catch (error) {
-            sqlite.exec("ROLLBACK");
-            throw error;
-          }
-        },
-      },
-    } as unknown as Env;
+    const env = { DB: d1Binding(sqlite) } as Env;
     const messageId = "a".repeat(64),
       now = "2026-11-13T00:00:00Z";
     sqlite

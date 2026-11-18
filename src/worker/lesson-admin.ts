@@ -73,7 +73,7 @@ export async function lessonAdmin(request: Request, env: Env) {
       id,
       null,
       "课程计划通知测试 · Lesson notification test",
-      "课程计划邮件通知已接通。这是一封测试通知。未来课程解析或入库失败、或原表信息有差异时，会发邮件到此地址。原文差异会直接保留并显示，无需确认或审批。",
+      "课程通知测试成功。课程处理失败或原文有不同说法时，通知会发送到此地址。\n\nThis test confirms that lesson notifications can reach this address. You will receive updates about processing failures and differences in the source documents.",
     );
     await sendLessonAlerts(env);
     return Response.json(

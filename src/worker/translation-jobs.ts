@@ -1,6 +1,6 @@
 import { TRANSLATION_VERSION } from "../shared/translation";
 import { HttpError } from "./errors";
-import { queueLessonAlert, sendLessonAlerts } from "./lesson-alerts";
+import { recordJobFailure, sendLessonAlerts } from "./lesson-alerts";
 import { lessonConfig } from "./lesson-config";
 import { sha256 } from "./mail";
 export interface TranslationJob {
@@ -166,16 +166,8 @@ export async function failTranslation(
   code: string,
   message: string,
 ) {
-  const updated = await env.DB.prepare(
-    "UPDATE translation_jobs SET status='failed',error_code=?,error_message=?,updated_at=? WHERE id=? AND attempt=? AND status IN ('queued','running')",
-  )
-    .bind(code, message, new Date().toISOString(), job.id, job.attempt)
-    .run();
-  if (!updated.meta.changes) {
-    const current = await translationJob(env, job.id);
-    if (current.status !== "failed" || current.attempt !== job.attempt) return;
-  }
-  if (!job.notify) return;
+  if (!job.notify)
+    return recordJobFailure(env, "translation_jobs", job, code, message);
   const config = lessonConfig(env);
   const url = new URL(config.siteUrl);
   if (job.kind === "mail")
@@ -191,13 +183,10 @@ export async function failTranslation(
       month: month || "",
     }).toString();
   }
-  await queueLessonAlert(
-    env,
-    `translation-${job.id}-${job.attempt}`,
-    null,
-    "翻译处理通知 · Translation processing update",
-    `中英文翻译在自动重试后仍未完成。原始内容已保留，网站会说明翻译暂不可用。\n\nTranslation could not be completed after automatic retries. Original content remains available.\n${message}\nCode: ${code}\n\n${url}\nJob: ${job.id}`,
-  );
+  await recordJobFailure(env, "translation_jobs", job, code, message, {
+    subject: "翻译处理通知 · Translation processing update",
+    body: `中英文翻译在自动重试后仍未完成。原始内容已保留，网站会说明翻译暂不可用。\n\nTranslation could not be completed after automatic retries. Original content remains available.\n${message}\n错误代码 / Code: ${code}\n\n${url}\n任务 / Job: ${job.id}`,
+  });
 }
 export async function retryTranslation(env: Env, id: string) {
   const job = await translationJob(env, id);

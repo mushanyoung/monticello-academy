@@ -7,8 +7,8 @@ import {
   lessonFileHint,
   validateExtraction,
 } from "../shared/lesson-extraction";
-import { sendLessonAlerts } from "./lesson-alerts";
-import { failLesson, getLessonJob, notifyLessonProblem } from "./lesson-jobs";
+import { jobAlert, sendLessonAlerts } from "./lesson-alerts";
+import { failLesson, getLessonJob, lessonNotice } from "./lesson-jobs";
 import { publishExtraction } from "./lesson-publish";
 import { indexLessonText } from "./lesson-search";
 import {
@@ -50,13 +50,19 @@ export class LessonWorkflow extends WorkflowEntrypoint<
         retry,
         async () => {
           const current = await getLessonJob(this.env, job.id);
+          if (
+            current.attempt !== job.attempt ||
+            !["queued", "running"].includes(current.status)
+          )
+            return { id: "", status: "retired" };
           if (current.response_id)
             return { id: current.response_id, status: "in_progress" };
-          await this.env.DB.prepare(
-            "UPDATE lesson_jobs SET status='running',updated_at=? WHERE id=? AND attempt=?",
+          const claim = await this.env.DB.prepare(
+            "UPDATE lesson_jobs SET status='running',updated_at=? WHERE id=? AND attempt=? AND status IN ('queued','running')",
           )
             .bind(new Date().toISOString(), job.id, job.attempt)
             .run();
+          if (!claim.meta.changes) return { id: "", status: "retired" };
           const object = await this.env.MAIL_BUCKET.get(job.content_key);
           if (!object || object.size > 15 * 1024 * 1024)
             throw new LessonError(
@@ -82,6 +88,7 @@ export class LessonWorkflow extends WorkflowEntrypoint<
           return { id: response.id, status: response.status };
         },
       );
+      if (submitted.status === "retired") return;
       let status = submitted.status;
       for (
         let poll = 0;
@@ -151,23 +158,28 @@ export class LessonWorkflow extends WorkflowEntrypoint<
               filename: job.filename,
             });
           await indexLessonText(this.env, job.content_key, extraction);
-          if (issues.length)
-            await notifyLessonProblem(
-              this.env,
-              job,
-              `课程已入库。以下原文差异或提取问题已保留并显示：\n${issues.map((issue) => `- ${issue.description}${issue.pages.length ? ` (PDF p. ${issue.pages.join(", ")})` : ""}`).join("\n")}`,
-            );
-          await this.env.DB.prepare(
-            "UPDATE lesson_jobs SET status=?,issues=?,updated_at=? WHERE id=? AND attempt=?",
-          )
-            .bind(
+          const writes = [
+            this.env.DB.prepare(
+              "UPDATE lesson_jobs SET status=?,issues=?,updated_at=? WHERE id=? AND attempt=? AND status='running'",
+            ).bind(
               extraction.isLessonPlan ? "published" : "ignored",
               JSON.stringify(issues),
               new Date().toISOString(),
               job.id,
               job.attempt,
-            )
-            .run();
+            ),
+          ];
+          if (extraction.isLessonPlan && issues.length && job.notify) {
+            const notice = lessonNotice(
+              this.env,
+              job,
+              `课程已发布，并保留以下原文记录。\nThe lesson plan is published with the following source notes.\n${issues.map((issue) => `- ${issue.description}${issue.pages.length ? ` (PDF p. ${issue.pages.join(", ")})` : ""}`).join("\n")}`,
+            );
+            writes.push(
+              jobAlert(this.env, "lesson_jobs", job, "published", notice),
+            );
+          }
+          await this.env.DB.batch(writes);
         },
       );
     } catch (error) {
