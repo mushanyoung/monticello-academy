@@ -32,7 +32,7 @@ GET `/api/highlights?after=YYYY-MM-DD&class=` 返回严格晚于 after 的最早
 
 ## 自动处理
 
-邮件归档后，标题、正文或文件名中出现 lesson plan 的 PDF 自动进入 Cloudflare Workflow；每 15 分钟补偿遗漏投递和通知。LESSON_CONFIG.processFrom 限定自动扫描的收信起点，历史回填显式提交附件 ID。文件内容与解析器版本共同去重；无关附件标记 ignored。任务仅有 queued / running / published / ignored / failed，没有人工审批。
+邮件归档与每 15 分钟的补扫使用相同规则。文件名、邮件标题或正文中出现英文 lesson…plan，或中文“课程计划”“教学计划”“课程安排”“课程表”，相应 PDF 即进入 Cloudflare Workflow。班级和年月以 PDF 内容为准，中文班名和“2027年11月”等文件名线索参与交叉核对。LESSON_CONFIG.processFrom 限定补扫的收信起点，历史回填也可显式提交附件 ID。文件内容与解析器版本共同去重；无关附件标记 ignored。任务仅有 queued / running / published / ignored / failed。
 
 Workflow 读取私有 R2 PDF，通过 Responses API 同时读取文字和页图，使用 strict JSON Schema、medium reasoning，后台轮询至完成。PDF 解析上限 15 MiB，输出最多 32k tokens。background:true、store:false 使用提供商短期轮询存储；参见 [PDF 输入](https://developers.openai.com/api/docs/guides/file-inputs)、[后台模式](https://developers.openai.com/api/docs/guides/background)。不执行文档中的指令，不提取儿童姓名或个人生日。
 

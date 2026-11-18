@@ -1,12 +1,22 @@
 import {
+  CHINESE_LESSON_LABELS,
   LESSON_PARSER_VERSION,
-  lessonFileHint,
 } from "../shared/lesson-extraction";
 import { HttpError } from "./errors";
 import { queueLessonAlert, sendLessonAlerts } from "./lesson-alerts";
 import { lessonConfig } from "./lesson-config";
 import { sha256 } from "./mail";
 
+// Use identical evidence for live intake and scheduled catch-up. Only IDs cross the D1 boundary.
+const lessonHints = ["a.filename", "m.subject", "m.body_text"].flatMap(
+  (column) => [
+    `${column} LIKE '%lesson%plan%'`,
+    ...CHINESE_LESSON_LABELS.map((label) => `instr(${column},'${label}')>0`),
+  ],
+);
+const candidatePdfs = `SELECT a.id FROM attachments a JOIN messages m ON m.id=a.message_id
+  WHERE (a.content_type='application/pdf' OR lower(a.filename) LIKE '%.pdf')
+  AND (${lessonHints.join(" OR ")})`;
 export interface LessonJob {
   id: string;
   attachment_id: string;
@@ -180,18 +190,11 @@ export async function reconcileLessons(env: Env) {
   const config = lessonConfig(env);
   if (config.enabled) {
     const candidates =
-      await env.DB.prepare(`SELECT a.id,a.filename,m.subject,m.body_text FROM attachments a JOIN messages m ON m.id=a.message_id
-      WHERE (a.content_type='application/pdf' OR lower(a.filename) LIKE '%.pdf') AND m.received_at>=?
+      await env.DB.prepare(`${candidatePdfs} AND m.received_at>=?
       AND NOT EXISTS(SELECT 1 FROM lesson_jobs j WHERE j.content_key=a.object_key AND j.parser_version=?)
-      AND (lower(a.filename) LIKE '%lesson%plan%' OR lower(m.subject) LIKE '%lesson%plan%' OR lower(m.body_text) LIKE '%lesson%plan%')
       ORDER BY m.received_at LIMIT 10`)
         .bind(config.processFrom, LESSON_PARSER_VERSION)
-        .all<{
-          id: string;
-          filename: string;
-          subject: string;
-          body_text: string;
-        }>();
+        .all<{ id: string }>();
     if (candidates.results.length)
       await enqueueLessons(
         env,
@@ -225,22 +228,11 @@ export async function reconcileLessons(env: Env) {
 export async function enqueueMessageLessons(env: Env, messageIds: string[]) {
   if (!lessonConfig(env).enabled || !messageIds.length) return;
   const files = await env.DB.prepare(
-    `SELECT a.id,a.filename,m.subject,m.body_text FROM attachments a JOIN messages m ON m.id=a.message_id WHERE a.message_id IN (${messageIds.map(() => "?").join(",")}) AND (a.content_type='application/pdf' OR lower(a.filename) LIKE '%.pdf')`,
+    `${candidatePdfs} AND a.message_id IN (${messageIds.map(() => "?").join(",")})`,
   )
     .bind(...messageIds)
-    .all<{
-      id: string;
-      filename: string;
-      subject: string;
-      body_text: string;
-    }>();
-  const ids = files.results
-    .filter(
-      (file) =>
-        lessonFileHint(file.filename).expectedLesson ||
-        /lesson[\s\S]{0,30}plan/i.test(`${file.subject}\n${file.body_text}`),
-    )
-    .map((file) => file.id);
+    .all<{ id: string }>();
+  const ids = files.results.map((file) => file.id);
   for (let offset = 0; offset < ids.length; offset += 10)
     await enqueueLessons(env, ids.slice(offset, offset + 10));
 }

@@ -303,3 +303,46 @@ test("processes actual email events and ignores unrelated PDFs without a false a
   );
   expect(state.alerts.filter((alert) => alert.job_id === job?.id)).toEqual([]);
 });
+
+test("recognizes Chinese-only lesson notices and forwarded classroom headers", async ({
+  request,
+}) => {
+  const key = `zh-lesson-${crypto.randomUUID()}`;
+  const subject = Buffer.from(`本月教学计划 ${key}`).toString("base64");
+  const raw = fixtureLessonMail(key, "calendar.pdf")
+    .replace(/^Subject:.*$/m, `Subject: =?UTF-8?B?${subject}?=`)
+    .replace(
+      "Content-Type: text/plain",
+      "Content-Type: text/plain; charset=utf-8",
+    )
+    .replace(
+      "Classroom lesson plan attached.",
+      "请查收附件。\r\n> 收件人：parents-guppy@school.example.com",
+    );
+  const response = await request.post(
+    "/cdn-cgi/local/email?from=parent@example.com&to=notebook@example.com",
+    { data: raw },
+  );
+  expect(response.status()).toBe(200);
+  const result = await (
+    await request.get(`/api/mail?class=guppy&q=${key}`)
+  ).json();
+  expect(result.total).toBe(1);
+  const { id } = result.items[0];
+  const file = (await (await request.get(`/api/mail/${id}`)).json())
+    .attachments[0];
+  await expect
+    .poll(
+      async () =>
+        (await jobs(request)).jobs.find((job) => job.attachment_id === file.id)
+          ?.status,
+      { timeout: 20000 },
+    )
+    .toBe("published");
+  for (const lang of ["zh", "en"]) {
+    const mail = await (
+      await request.get(`/api/mail/${id}?lang=${lang}`)
+    ).json();
+    expect(mail.class_ids.sort()).toEqual(["guppy", "sunshine"]);
+  }
+});

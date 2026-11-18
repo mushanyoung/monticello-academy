@@ -51,7 +51,9 @@ async function parseMessage(
   const body = (mail.text || plainText(mail.html || "")).slice(0, MAX_TEXT);
   const forwardedRecipients = body
     .split("\n")
-    .filter((line) => /^(?:[> ]*)(?:to|cc|收件人|抄送)\s*:/i.test(line))
+    .filter((line) =>
+      /^[>\s]*(?:to|cc|bcc|收件人|抄送|密送)\s*[:：]/i.test(line),
+    )
     .join("\n");
   const classes = [
     ...new Set([

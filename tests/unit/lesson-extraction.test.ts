@@ -19,6 +19,18 @@ describe("lesson document rules", () => {
     expect(
       lessonFileHint("Sunshine Guppy July August 2027 2028.pdf"),
     ).toMatchObject({ classId: null, month: null });
+    expect(lessonFileHint("阳光班2027年11月课程计划.pdf")).toMatchObject({
+      classId: "sunshine",
+      month: "2027-11",
+      expectedLesson: true,
+    });
+    expect(
+      lessonFileHint("小鱼班 两岁班 2027年1月及2月课程表.pdf"),
+    ).toMatchObject({
+      classId: null,
+      month: null,
+      expectedLesson: true,
+    });
   });
   it("validates source identity, real calendar dates, uniqueness and page evidence", () => {
     const data = fixtureExtraction();

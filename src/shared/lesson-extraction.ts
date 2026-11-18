@@ -2,6 +2,12 @@ import { z } from "zod";
 import { type LessonPlan, planSchema, validDate } from "./plans";
 
 export const LESSON_PARSER_VERSION = "1";
+export const CHINESE_LESSON_LABELS = [
+  "课程计划",
+  "教学计划",
+  "课程安排",
+  "课程表",
+] as const;
 const text = z.string().max(2000);
 const label = z.string().min(1).max(1000);
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -95,21 +101,29 @@ const MONTHS = [
 export function lessonFileHint(filename: string) {
   const name = filename.toLowerCase().replace(/[’'_-]/g, " ");
   const classes = [
-    ...(/\bsunshine\b/.test(name) ? ["sunshine" as const] : []),
-    ...(/\bguppy\b/.test(name) ? ["guppy" as const] : []),
-    ...(/\btwos?\s+(town|s\s+town)\b/.test(name) ? ["twos" as const] : []),
+    ...(/\bsunshine\b|阳光班/.test(name) ? ["sunshine" as const] : []),
+    ...(/\bguppy\b|小鱼班/.test(name) ? ["guppy" as const] : []),
+    ...(/\btwos?\s+(town|s\s+town)\b|两岁班/.test(name)
+      ? ["twos" as const]
+      : []),
   ];
-  const monthNumbers = MONTHS.flatMap((month, index) =>
-    new RegExp(`\\b${month}\\b`).test(name) ? [index + 1] : [],
+  const monthNumbers = new Set(
+    MONTHS.flatMap((month, index) =>
+      new RegExp(`\\b${month}\\b`).test(name) ? [index + 1] : [],
+    ),
   );
+  for (const match of name.matchAll(/(?<!\d)(1[0-2]|0?[1-9])\s*月/g))
+    monthNumbers.add(Number(match[1]));
   const years = [...new Set(name.match(/\b20\d{2}\b/g) || [])];
   return {
     classId: classes.length === 1 ? classes[0] : null,
     month:
-      monthNumbers.length === 1 && years.length === 1
-        ? `${years[0]}-${String(monthNumbers[0]).padStart(2, "0")}`
+      monthNumbers.size === 1 && years.length === 1
+        ? `${years[0]}-${String([...monthNumbers][0]).padStart(2, "0")}`
         : null,
-    expectedLesson: /lesson[\s\S]*plan/i.test(name),
+    expectedLesson:
+      /lesson[\s\S]*plan/i.test(name) ||
+      CHINESE_LESSON_LABELS.some((label) => name.includes(label)),
   };
 }
 
