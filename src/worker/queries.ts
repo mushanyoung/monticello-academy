@@ -1,6 +1,7 @@
 import { CLASSES, type ClassId, isClassId } from "../shared/classes";
 import { isLanguage, type Language } from "../shared/language";
 import type { MailSummary } from "../shared/models";
+import { TRANSLATION_VERSION } from "../shared/translation";
 import { HttpError } from "./errors";
 import { localizedMailSchema } from "./translation-data";
 
@@ -9,7 +10,7 @@ function summarySql(language: Language) {
   return `SELECT m.id,coalesce(l.subject,m.subject) subject,m.sender,m.sender_name,m.sent_at,m.received_at,substr(coalesce(l.body_text,m.body_text),1,180) snippet,
  (SELECT group_concat(class_id) FROM message_classes WHERE message_id=m.id) class_ids,
  (SELECT count(*) FROM attachments WHERE message_id=m.id) attachment_count,
- CASE WHEN l.message_id IS NOT NULL THEN 'ready' WHEN EXISTS(SELECT 1 FROM translation_jobs j WHERE j.kind='mail' AND j.entity_id=m.id AND j.source_document=m.raw_key AND j.status='failed') THEN 'unavailable' ELSE 'translating' END translationStatus
+ CASE WHEN l.message_id IS NOT NULL THEN 'ready' WHEN EXISTS(SELECT 1 FROM translation_jobs j WHERE j.kind='mail' AND j.entity_id=m.id AND j.source_document=m.raw_key AND j.translator_version='${TRANSLATION_VERSION}' AND j.status='failed') THEN 'unavailable' ELSE 'translating' END translationStatus
  FROM messages m LEFT JOIN mail_localizations l ON l.message_id=m.id AND l.language='${language}' AND l.source_document=m.raw_key`;
 }
 export function summary(row: MailRow): MailSummary {

@@ -13,6 +13,7 @@ import {
   type StoredPlan,
   validDate,
 } from "../shared/plans";
+import { TRANSLATION_VERSION } from "../shared/translation";
 import { HttpError } from "./errors";
 import { sha256 } from "./mail";
 import { classFilter } from "./queries";
@@ -33,7 +34,7 @@ function decode(row: PlanRow): StoredPlan {
 }
 function localizedPlanSql(language: Language) {
   return `SELECT p.id,coalesce(l.document,p.document) document,p.updated_at,
- CASE WHEN l.plan_id IS NOT NULL OR '${language}'='en' THEN 'ready' WHEN EXISTS(SELECT 1 FROM translation_jobs j WHERE j.kind='plan' AND j.entity_id=p.id AND j.source_document=p.document AND j.status='failed') THEN 'unavailable' ELSE 'translating' END translationStatus
+ CASE WHEN l.plan_id IS NOT NULL THEN 'ready' WHEN EXISTS(SELECT 1 FROM translation_jobs j WHERE j.kind='plan' AND j.entity_id=p.id AND j.source_document=p.document AND j.translator_version='${TRANSLATION_VERSION}' AND j.status='failed') THEN 'unavailable' ELSE 'translating' END translationStatus
  FROM lesson_plans p LEFT JOIN plan_localizations l ON l.plan_id=p.id AND l.source_document=p.document AND l.language='${language}'`;
 }
 export async function savePlan(db: D1Database, input: unknown) {

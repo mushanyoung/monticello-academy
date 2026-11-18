@@ -201,9 +201,14 @@ test("retries transient provider errors and reports persistent failure without d
       { timeout: 25000 },
     )
     .toBe("published");
-  const before = await (
-    await request.get("/api/plans?month=2027-11&class=sunshine")
-  ).json();
+  const currentPlan = async () =>
+    (
+      await request.get("/api/plans?month=2027-11&class=sunshine&lang=en")
+    ).json();
+  await expect
+    .poll(async () => (await currentPlan()).items[0]?.translationStatus)
+    .toBe("ready");
+  const before = await currentPlan();
   const bad = await importLesson(request, "failure");
   await expect
     .poll(
@@ -227,9 +232,7 @@ test("retries transient provider errors and reports persistent failure without d
       { timeout: 10000 },
     )
     .toBe("sent");
-  expect(
-    await (await request.get("/api/plans?month=2027-11&class=sunshine")).json(),
-  ).toEqual(before);
+  expect(await currentPlan()).toEqual(before);
   expect(
     (
       await request.post(`/api/admin/lessons/${failed?.id}/retry`, { headers })
@@ -246,7 +249,19 @@ test("protects operations and raw model results with admin authentication", asyn
   expect(
     (await request.post("/api/admin/lessons/notification-test")).status(),
   ).toBe(401);
-  const job = (await jobs(request)).jobs.find((entry) => entry.result_key);
+  const seeded = await importLesson(request, "admin-access");
+  await expect
+    .poll(
+      async () =>
+        (await jobs(request)).jobs.find(
+          (entry) => entry.attachment_id === seeded.attachmentId,
+        )?.status,
+      { timeout: 20000 },
+    )
+    .toBe("published");
+  const job = (await jobs(request)).jobs.find(
+    (entry) => entry.attachment_id === seeded.attachmentId && entry.result_key,
+  );
   expect(job).toBeDefined();
   expect(
     (await request.get(`/api/admin/lessons/${job?.id}/result`)).status(),
