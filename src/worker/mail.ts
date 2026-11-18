@@ -230,7 +230,7 @@ async function storeMail(env: Env, parsed: ParsedMail) {
     .slice(0, 200_000);
   // Resolve the winner inside each statement: concurrent deliveries cannot leave partial associations.
   const selector =
-    "SELECT id FROM messages WHERE message_key = ? OR content_hash = ? LIMIT 1";
+    "SELECT coalesce((SELECT id FROM messages WHERE message_key=?),(SELECT id FROM messages WHERE content_hash=?)) id";
   const statements = [
     env.DB.prepare(
       `INSERT INTO messages(id,message_key,content_hash,subject,sender,sender_name,recipients,sent_at,received_at,body_text,headers,raw_key,search_text) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT DO NOTHING`,
@@ -263,7 +263,8 @@ async function storeMail(env: Env, parsed: ParsedMail) {
     );
     statements.push(
       env.DB.prepare(
-        `INSERT OR IGNORE INTO attachments(id,message_id,filename,content_type,size,object_key,extracted_text,text_status) SELECT ?,id,?,?,?,?,?,? FROM (${selector})`,
+        `INSERT OR IGNORE INTO attachments(id,message_id,filename,content_type,size,object_key,extracted_text,text_status)
+         SELECT ?,id,?,?,?,?,?,? FROM messages WHERE id=? AND raw_key=?`,
       ).bind(
         id,
         attachment.filename,
@@ -272,15 +273,14 @@ async function storeMail(env: Env, parsed: ParsedMail) {
         `attachments/${attachment.hash}`,
         attachment.text,
         attachment.status,
-        messageKey,
-        contentHash,
+        candidateId,
+        rawKey,
       ),
     );
   }
-  await env.DB.batch(statements);
-  const result = await env.DB.prepare(selector)
-    .bind(messageKey, contentHash)
-    .first<{ id: string }>();
-  if (!result) throw new Error("Message was not persisted");
-  return { id: result.id, classIds: parsed.classes };
+  statements.push(env.DB.prepare(selector).bind(messageKey, contentHash));
+  const saved = await env.DB.batch<{ id: string }>(statements);
+  const id = saved.at(-1)?.results[0]?.id;
+  if (!id) throw new Error("Message was not persisted");
+  return { id, classIds: parsed.classes };
 }

@@ -107,6 +107,45 @@ test("enforces imports, validates input, orders dates, and treats search literal
   expect(literal.total).toBe(0);
 });
 
+test("keeps attachments paired with the winning MIME when a delivery reuses an ID", async ({
+  request,
+}) => {
+  const key = crypto.randomUUID();
+  const original = fixtureMail(`${key}-original`);
+  const different = fixtureMail(
+    `${key}-other`,
+    mailConfig.classEmails.guppy,
+  ).replaceAll("November checklist.txt", "other.txt");
+  const archive = async (raw: string) => {
+    const result = await request.post("/api/import", { headers, data: raw });
+    expect(result.status()).toBe(201);
+    return (await result.json()).id;
+  };
+  const id = await archive(original);
+  const otherId = await archive(different);
+  expect(otherId).not.toBe(id);
+  const redelivery = different
+    .replace(mailConfig.classEmails.guppy, mailConfig.classEmails.twos)
+    .replace(`Message-ID: <${key}-other@`, `Message-ID: <${key}-original@`);
+  expect(await archive(redelivery)).toBe(id);
+  for (const lang of ["en", "zh"]) {
+    const detail = await (
+      await request.get(`/api/mail/${id}?lang=${lang}`)
+    ).json();
+    expect(detail.class_ids.sort()).toEqual(["sunshine", "twos"]);
+    expect(detail.attachments).toHaveLength(1);
+    expect(detail.attachments[0].original_filename).toBe(
+      "November checklist.txt",
+    );
+  }
+  expect(
+    (await (await request.get(`/api/mail/${otherId}`)).json()).class_ids,
+  ).toEqual(["guppy"]);
+  expect(await (await request.get(`/api/original/${id}`)).text()).toBe(
+    original,
+  );
+});
+
 test("receives real email events and rejects unauthorized envelope senders", async ({
   request,
 }) => {
