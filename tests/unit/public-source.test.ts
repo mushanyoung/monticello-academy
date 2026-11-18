@@ -1,3 +1,7 @@
+import { execFileSync, spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { publicSourceIssues } from "../../scripts/public-source-rules";
 
@@ -93,4 +97,57 @@ describe("public Git identity exception", () => {
       "non-example email address",
     );
   });
+});
+
+it("checks the staged snapshot, lockfile, and historical private paths independently of the current checkout", () => {
+  const cwd = mkdtempSync(join(tmpdir(), "notebook-source-"));
+  const script = resolve("scripts/check-public-source.ts");
+  const git = (...args: string[]) =>
+    execFileSync(
+      "git",
+      [
+        "-c",
+        "user.name=Fixture",
+        "-c",
+        "user.email=fixture@example.com",
+        "-c",
+        "commit.gpgSign=false",
+        "-c",
+        "core.hooksPath=/dev/null",
+        ...args,
+      ],
+      { cwd },
+    );
+  const check = (...args: string[]) =>
+    spawnSync(process.execPath, [script, ...args], { cwd, encoding: "utf8" });
+  try {
+    git("init", "-q");
+    const lock = join(cwd, "pnpm-lock.yaml");
+    writeFileSync(lock, identity);
+    git("add", "pnpm-lock.yaml");
+    writeFileSync(lock, "public worktree content");
+    const staged = check();
+    expect(staged.status).toBe(1);
+    expect(staged.stderr).toContain(
+      "index pnpm-lock.yaml: non-example email address",
+    );
+    git("add", "pnpm-lock.yaml");
+    rmSync(lock);
+    expect(check().status).toBe(0);
+    git("commit", "-qm", "Initial snapshot");
+    mkdirSync(join(cwd, "config"));
+    writeFileSync(join(cwd, "config/.dev.vars"), "public worktree content");
+    git("add", "config/.dev.vars");
+    git("commit", "-qm", "Historical configuration");
+    git("rm", "-q", "config/.dev.vars");
+    git("commit", "-qm", "Remove configuration");
+    expect(check().status).toBe(0);
+    const history = check("--history");
+    expect(history.status).toBe(1);
+    expect(history.stderr).toContain(
+      ".dev.vars: private configuration tracked",
+    );
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
 });
