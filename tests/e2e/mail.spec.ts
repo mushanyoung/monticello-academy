@@ -216,6 +216,41 @@ test("receives real email events and rejects unauthorized envelope senders", asy
   expect(absent.total).toBe(0);
 });
 
+test("archives a Gmail filter delivery with the original sender and classroom", async ({
+  request,
+}) => {
+  const key = `gmail-filter-${crypto.randomUUID()}`;
+  const query = new URLSearchParams({
+    from: "parent+caf_=notebook=example.com@example.com",
+    to: mailConfig.inboundAddress,
+  });
+  const raw = fixtureMail(key, mailConfig.classEmails.guppy);
+  const response = await request.post(`/cdn-cgi/local/email?${query}`, {
+    data: raw,
+  });
+  expect(response.status(), await response.text()).toBe(200);
+  for (const lang of ["en", "zh"]) {
+    const page = await (
+      await request.get(`/api/mail?q=${key}&lang=${lang}`)
+    ).json();
+    expect(page.total).toBe(1);
+    expect(page.items[0]).toMatchObject({
+      sender: "teacher@school.example.com",
+      class_ids: ["guppy"],
+    });
+  }
+  query.set("to", "other@example.com");
+  const misdirected = await request.post(`/cdn-cgi/local/email?${query}`, {
+    data: fixtureMail(`${key}-misdirected`),
+  });
+  expect(misdirected.status()).toBe(400);
+  expect(await misdirected.text()).toContain("Unknown archive address");
+  const absent = await (
+    await request.get(`/api/mail?q=${key}-misdirected`)
+  ).json();
+  expect(absent.total).toBe(0);
+});
+
 test("exposes only the public inbound address, never the sender allowlist or class email mapping", async ({
   request,
 }) => {

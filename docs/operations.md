@@ -39,6 +39,8 @@
 
 Gmail filter 的转发动作只作用于创建后的新邮件；“同时应用于匹配的会话”不会补转旧邮件，历史邮件仍需 `.eml` 导入，参见 [Google filter 说明](https://support.google.com/mail/answer/6579?hl=zh-Hans)。仅自动转发三个班的匹配邮件，不开启全邮箱转发。Gmail 新增转发地址前会发送验证邮件；默认学校/家长白名单并不包含 Google 验证发件人，验证收信需单独安排私密路径，不能把确认链接或验证码归档到公开网站。
 
+Gmail 筛选器转发时，退信地址可能带有 `+caf_=`。例如 `parent@example.com` 转发至 `notebook@example.com` 时，信封发件人可以是 `parent+caf_=notebook=example.com@example.com`。将转发账号本身填入 `MAIL_CONFIG.allowedForwarders`。`gmailForwardingDomains` 省略时默认为 `gmail.com` 和 `googlemail.com`，使用 Google Workspace 自定义域名时，在该列表中写入需要支持的 Gmail 和 Workspace 域名。该设置只为已允许的账号启用上述地址格式。若已收到永久拒收退信，可在 Gmail 中选中被退回的学校原信，使用“作为附件转发”补投到归档地址。
+
 POST `/api/import` 使用 Bearer IMPORT_TOKEN，body 为原始 .eml；`?class=sunshine|guppy|twos` 可补充班级。POST `/api/plans` 使用同一管理密钥与课程 JSON。密钥不要放到浏览器或命令行参数里。
 
 管理请求使用 Authorization 的 Bearer 方案。课程 JSON 上限为 256 KiB，课程与翻译任务的入队 JSON 上限为 16 KiB。请求体超限返回 413 和字节上限，空请求或无效 UTF-8 JSON 返回 400，结构校验失败返回 422。GET 和 HEAD 可读取站点信息与健康状态；附件和原件的 HEAD 仅读取 R2 元数据。

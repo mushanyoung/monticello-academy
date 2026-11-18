@@ -1,6 +1,9 @@
 import { isClassId } from "../shared/classes";
 import { requestLanguage } from "../shared/language";
-import { parseMailConfig } from "../shared/mail-config";
+import {
+  isAllowedEnvelopeSender,
+  parseMailConfig,
+} from "../shared/mail-config";
 import { isAdmin } from "./auth";
 import { HttpError, MAX_EMAIL_BYTES, readJson, readLimited } from "./errors";
 import { lessonAdmin } from "./lesson-admin";
@@ -191,14 +194,8 @@ export default {
       message.setReject("Email exceeds 20 MB.");
       return;
     }
-    const sender = message.from.toLowerCase();
     const config = parseMailConfig(env.MAIL_CONFIG);
-    const allow = config.allowedForwarders.map((s) => s.toLowerCase());
-    const domain = sender.slice(sender.lastIndexOf("@") + 1);
-    if (
-      !config.allowedSenderDomains.includes(domain) &&
-      !allow.includes(sender)
-    ) {
+    if (!isAllowedEnvelopeSender(message.from, config)) {
       message.setReject(
         "Sender is not an approved school sender or forwarder.",
       );

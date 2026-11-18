@@ -2,6 +2,7 @@
   "inboundAddress": "notebook@example.com",
   "allowedForwarders": ["parent@example.com"],
   "allowedSenderDomains": ["school.example.com"],
+  "gmailForwardingDomains": ["gmail.com", "googlemail.com", "example.com"],
   "classEmails": {
     "sunshine": "parents-sunshine@school.example.com",
     "guppy": "parents-guppy@school.example.com",

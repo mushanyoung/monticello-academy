@@ -18,7 +18,9 @@ R2 使用内容寻址 key，在 D1 事务前完成写入。失败会抛出以便
 
 ## 查询与公开访问
 
-用户明确选择公开访问。GET API、正文与附件公开；写入只能通过允许的发件人 email handler 或带 IMPORT_TOKEN 的管理接口。令牌用固定长度哈希的 timing-safe 比较；生产没有测试令牌。MAIL_CONFIG Secret 配置的学校域名与转发人允许入站，其他信封发件人拒绝。邮件默认在隔离 iframe 中显示净化后的原始 HTML，保留颜色、字体、列表和表格，可切换纯文本。GET `/api/mail/:id/content` 从已有 R2 原件按需解析，不需要迁移或重新导入历史邮件；CID 图片通过内容哈希关联已入库附件。附件默认强制下载；仅 PDF、常见栅格图和纯文本允许隔离预览。禁止缓存 API，响应设置 nosniff。
+用户明确选择公开访问。GET API、正文与附件公开；写入只能通过允许的发件人 email handler 或带 IMPORT_TOKEN 的管理接口。令牌用固定长度哈希的 timing-safe 比较；生产没有测试令牌。邮件默认在隔离 iframe 中显示净化后的原始 HTML，保留颜色、字体、列表和表格，可切换纯文本。GET `/api/mail/:id/content` 从已有 R2 原件按需解析，不需要迁移或重新导入历史邮件；CID 图片通过内容哈希关联已入库附件。附件默认强制下载；仅 PDF、常见栅格图和纯文本允许隔离预览。禁止缓存 API，响应设置 nosniff。
+
+接收端从 SMTP 信封读取发件人与收件人。收件人必须精确匹配归档入口。发件人允许学校域名或配置的转发邮箱。Gmail 筛选器使用 `+caf_=` 时，还要同时匹配已列入 `allowedForwarders` 的完整账号、`gmailForwardingDomains` 中的邮箱域名和标签中编码的归档地址。归档记录的发件人和班级仍取自原件。[Cloudflare 邮件事件接口](https://developers.cloudflare.com/email-service/api/route-emails/email-handler/)
 
 搜索对组合索引做 Unicode 小写后的字面子串匹配，支持中文和标点，无 SQL/FTS 查询语法注入。小规模校园档案优先可预测语义；参数绑定，结果每页 30 条，日期和 ID 稳定排序。
 
