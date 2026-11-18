@@ -11,7 +11,7 @@ export async function readLimited(
   stream: ReadableStream<Uint8Array> | null,
   max: number,
 ): Promise<Uint8Array<ArrayBuffer>> {
-  if (!stream) throw new HttpError(400, "An email file is required.");
+  if (!stream) throw new HttpError(400, "A request body is required.");
   const reader = stream.getReader();
   const chunks: Uint8Array[] = [];
   let size = 0;
@@ -22,7 +22,7 @@ export async function readLimited(
       size += value.byteLength;
       if (size > max) {
         await reader.cancel();
-        throw new HttpError(413, "File exceeds the 20 MB import limit.");
+        throw new HttpError(413, `Request body exceeds the ${max}-byte limit.`);
       }
       chunks.push(value);
     }
@@ -36,4 +36,18 @@ export async function readLimited(
     offset += chunk.byteLength;
   }
   return result;
+}
+
+export async function readJson(
+  request: Request,
+  max: number,
+): Promise<unknown> {
+  const bytes = await readLimited(request.body, max);
+  try {
+    return JSON.parse(
+      new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(bytes),
+    );
+  } catch {
+    throw new HttpError(400, "Invalid JSON.");
+  }
 }

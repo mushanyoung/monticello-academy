@@ -40,6 +40,17 @@ test("archives concurrent list deliveries once and searches/downloads attachment
   expect(await file.text()).toContain("Acorn scavenger hunt");
   expect(file.headers()["content-disposition"]).toContain("attachment;");
   expect(file.headers()["x-content-type-options"]).toBe("nosniff");
+  const metadata = await request.head(
+    `/api/attachments/${detail.attachments[0].id}`,
+  );
+  expect(metadata.status()).toBe(200);
+  expect(metadata.headers()["content-length"]).toBe(
+    file.headers()["content-length"],
+  );
+  expect(metadata.headers()["content-disposition"]).toBe(
+    file.headers()["content-disposition"],
+  );
+  expect((await metadata.body()).length).toBe(0);
   expect(await (await request.get(`/api/original/${id}`)).text()).toContain(
     `Message-ID: <${key}`,
   );
@@ -61,6 +72,40 @@ test("archives concurrent list deliveries once and searches/downloads attachment
     }
     expect(foundIds).toContain(id);
   }
+});
+test("reports JSON size and syntax errors consistently across administrative routes", async ({
+  request,
+}) => {
+  for (const [path, maximum] of [
+    ["/api/admin/lessons", 16384],
+    ["/api/admin/translations", 16384],
+    ["/api/plans", 262144],
+  ] as const) {
+    const oversized = await request.post(path, {
+      headers,
+      data: " ".repeat(maximum + 1),
+    });
+    expect(oversized.status()).toBe(413);
+    expect((await oversized.json()).error).toContain(String(maximum));
+    expect((await request.post(path, { headers, data: "{" })).status()).toBe(
+      400,
+    );
+  }
+  const token = "local-e2e-import-token";
+  const unauthorized = await request.get("/api/admin/lessons", {
+    headers: { Authorization: token },
+  });
+  expect(unauthorized.status()).toBe(401);
+  expect(unauthorized.headers()["www-authenticate"]).toMatch(/^Bearer/);
+  expect(
+    (
+      await request.get("/api/admin/lessons", {
+        headers: { Authorization: `bearer ${token}` },
+      })
+    ).status(),
+  ).toBe(200);
+  for (const path of ["/api/site", "/api/health"])
+    expect((await request.post(path)).status()).toBe(405);
 });
 test("enforces imports, validates input, orders dates, and treats search literally", async ({
   request,

@@ -41,6 +41,8 @@ Gmail filter 的转发动作只作用于创建后的新邮件；“同时应用�
 
 POST `/api/import` 使用 Bearer IMPORT_TOKEN，body 为原始 .eml；`?class=sunshine|guppy|twos` 可补充班级。POST `/api/plans` 使用同一管理密钥与课程 JSON。密钥不要放到浏览器或命令行参数里。
 
+管理请求使用 Authorization 的 Bearer 方案。课程 JSON 上限为 256 KiB，课程与翻译任务的入队 JSON 上限为 16 KiB。请求体超限返回 413 和字节上限，空请求或无效 UTF-8 JSON 返回 400，结构校验失败返回 422。GET 和 HEAD 可读取站点信息与健康状态；附件和原件的 HEAD 仅读取 R2 元数据。
+
 `/api/import` 也支持带有多封 `.eml` 的批量转发原件。拆分后为一封时保持 `{id,classIds}` 响应，多封时返回 `{messages:[{id,classIds},...]}`，每个条目对应一次原件处理；重复原件可返回相同 id。格式错误的批次整体拒绝且不写入，存储失败可重试整批。
 
 `/api/health` 检查 Worker 可用；`/api/stats`、`/api/mail` 验证 D1；附件通过 Worker 从私有 R2 读取。运行日志只记录事件、内部 ID 和错误类型。失败投递可重试，去重规则保证幂等。迁移按编号应用；已有数据回滚须先备份 D1/R2。

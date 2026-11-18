@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { isAdmin } from "./auth";
-import { HttpError, readLimited } from "./errors";
+import { HttpError, readJson } from "./errors";
 import {
   enqueueTranslations,
   reconcileTranslations,
@@ -21,14 +21,7 @@ export async function translationAdmin(request: Request, env: Env) {
     return Response.json({ jobs: jobs.results, counts: counts.results });
   }
   if (path === "/api/admin/translations" && request.method === "POST") {
-    let input: unknown;
-    try {
-      input = JSON.parse(
-        new TextDecoder().decode(await readLimited(request.body, 16 * 1024)),
-      );
-    } catch {
-      throw new HttpError(400, "Invalid JSON.");
-    }
+    const input = await readJson(request, 16 * 1024);
     const parsed = z
       .object({
         kind: z.enum(["mail", "plan"]),

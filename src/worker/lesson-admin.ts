@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { isAdmin } from "./auth";
-import { HttpError, readLimited } from "./errors";
+import { HttpError, readJson } from "./errors";
 import { queueLessonAlert, sendLessonAlerts } from "./lesson-alerts";
 import {
   enqueueLessons,
@@ -25,14 +25,7 @@ export async function lessonAdmin(request: Request, env: Env) {
     return Response.json({ jobs: jobs.results, alerts: alerts.results });
   }
   if (path === "/api/admin/lessons" && request.method === "POST") {
-    let input: unknown;
-    try {
-      input = JSON.parse(
-        new TextDecoder().decode(await readLimited(request.body, 16 * 1024)),
-      );
-    } catch {
-      throw new HttpError(400, "Invalid JSON.");
-    }
+    const input = await readJson(request, 16 * 1024);
     const parsed = z
       .object({
         attachmentIds: z

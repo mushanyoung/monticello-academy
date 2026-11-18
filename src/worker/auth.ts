@@ -1,7 +1,9 @@
 export async function isAdmin(request: Request, env: Env): Promise<boolean> {
   if (!env.IMPORT_TOKEN) return false;
-  const value =
-    request.headers.get("authorization")?.replace(/^Bearer /, "") || "";
+  const value = request.headers
+    .get("authorization")
+    ?.match(/^Bearer +(\S+)$/i)?.[1];
+  if (!value) return false;
   const encoder = new TextEncoder();
   const hashes = await Promise.all(
     [value, env.IMPORT_TOKEN].map((v) =>

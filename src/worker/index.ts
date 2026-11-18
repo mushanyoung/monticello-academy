@@ -2,7 +2,7 @@ import { isClassId } from "../shared/classes";
 import { requestLanguage } from "../shared/language";
 import { parseMailConfig } from "../shared/mail-config";
 import { isAdmin } from "./auth";
-import { HttpError, MAX_EMAIL_BYTES, readLimited } from "./errors";
+import { HttpError, MAX_EMAIL_BYTES, readJson, readLimited } from "./errors";
 import { lessonAdmin } from "./lesson-admin";
 import { enqueueMessageLessons, reconcileLessons } from "./lesson-jobs";
 import { ingestMail } from "./mail";
@@ -28,11 +28,6 @@ async function route(
   if (path.startsWith("/api/admin/translations"))
     return translationAdmin(request, env);
   if (path.startsWith("/api/admin/lessons")) return lessonAdmin(request, env);
-  if (path === "/api/site")
-    return Response.json({
-      inboundAddress: parseMailConfig(env.MAIL_CONFIG).inboundAddress,
-    });
-  if (path === "/api/health") return Response.json({ status: "ok" });
   if (path === "/api/admin/ai" && request.method === "GET") {
     if (!(await isAdmin(request, env)))
       throw new HttpError(401, "Import credentials required.");
@@ -77,13 +72,7 @@ async function route(
   if (path === "/api/plans" && request.method === "POST") {
     if (!(await isAdmin(request, env)))
       throw new HttpError(401, "Import credentials required.");
-    const bytes = await readLimited(request.body, 256 * 1024);
-    let input: unknown;
-    try {
-      input = JSON.parse(new TextDecoder().decode(bytes));
-    } catch {
-      throw new HttpError(400, "Invalid JSON.");
-    }
+    const input = await readJson(request, 256 * 1024);
     const saved = await savePlan(env.DB, input);
     ctx.waitUntil(
       translateNewContent(env, "plan", [saved.id]).catch(() =>
@@ -94,6 +83,11 @@ async function route(
   }
   if (request.method !== "GET" && request.method !== "HEAD")
     throw new HttpError(405, "Method not allowed.");
+  if (path === "/api/site")
+    return Response.json({
+      inboundAddress: parseMailConfig(env.MAIL_CONFIG).inboundAddress,
+    });
+  if (path === "/api/health") return Response.json({ status: "ok" });
   if (path === "/api/plan-months")
     return Response.json(await listPlanMonths(env.DB));
   if (path === "/api/plans") return Response.json(await listPlans(env.DB, url));
@@ -125,7 +119,12 @@ async function route(
       .bind(download[2])
       .first<{ object_key: string; filename: string; content_type: string }>();
     if (!row) throw new HttpError(404, "File not found.");
-    const object = await env.MAIL_BUCKET.get(row.object_key);
+    const object =
+      request.method === "HEAD"
+        ? await env.MAIL_BUCKET.head(row.object_key).then(
+            (metadata) => metadata && { size: metadata.size, body: null },
+          )
+        : await env.MAIL_BUCKET.get(row.object_key);
     if (!object)
       throw new HttpError(404, "File is unavailable. Please try again later.");
     const safePreview =
@@ -179,6 +178,8 @@ export default {
     response.headers.set("Cache-Control", "no-store");
     response.headers.set("X-Content-Type-Options", "nosniff");
     response.headers.set("Referrer-Policy", "no-referrer");
+    if (response.status === 401)
+      response.headers.set("WWW-Authenticate", 'Bearer realm="archive"');
     return response;
   },
   async scheduled(_event, env, ctx) {
