@@ -126,7 +126,8 @@ export function validateExtraction(
   const add = (
     code: z.infer<typeof extractionIssueSchema>["code"],
     description: string,
-  ) => issues.push({ code, description, pages: [] });
+    pages: number[] = [],
+  ) => issues.push({ code, description, pages });
   const hint = lessonFileHint(filename);
   if (!extraction.isLessonPlan) {
     if (hint.expectedLesson)
@@ -162,7 +163,7 @@ export function validateExtraction(
     if (!validDate(day.date) || !allowedMonths.includes(day.date.slice(0, 7)))
       add("ambiguous-date", `Invalid or out-of-range date: ${day.date}.`);
     if (dates.has(day.date))
-      add("ambiguous-date", `Duplicate date: ${day.date}.`);
+      add("ambiguous-date", `Duplicate date: ${day.date}.`, day.pages);
     dates.add(day.date);
     if (day.pages.some((page) => page > extraction.pageCount))
       add("identity", `Invalid source page for ${day.date}.`);
@@ -212,6 +213,12 @@ export function validateExtraction(
   return issues;
 }
 
+function unique<T>(items: T[]): T[] {
+  return [
+    ...new Map(items.map((item) => [JSON.stringify(item), item])).values(),
+  ];
+}
+
 export function extractedPlans(
   extraction: LessonExtraction,
   source: LessonSource,
@@ -225,8 +232,32 @@ export function extractedPlans(
   const months = [
     ...new Set(extraction.days.map((day) => day.date.slice(0, 7))),
   ].sort();
-  return months.map((month) =>
-    planSchema.parse({
+  const sourceNotes = unique(
+    validateExtraction(extraction, source.filename),
+  ).map(({ description, pages }) => ({
+    attachmentId: source.attachmentId,
+    description,
+    pages,
+  }));
+  return months.map((month) => {
+    const dates = new Set<string>();
+    const days = [];
+    const alternateDays = [];
+    for (const { pages, ...day } of unique(
+      extraction.days.filter((day) => day.date.startsWith(`${month}-`)),
+    )) {
+      const entry = {
+        ...day,
+        sourceAttachmentId: source.attachmentId,
+        sourcePages: pages,
+      };
+      if (dates.has(day.date)) alternateDays.push(entry);
+      else {
+        dates.add(day.date);
+        days.push(entry);
+      }
+    }
+    return planSchema.parse({
       classId: extraction.classId,
       month,
       title: extraction.title,
@@ -238,13 +269,7 @@ export function extractedPlans(
       sourceKind: month === extraction.documentMonth ? "monthly" : "carryover",
       sources: [{ ...source, documentMonth: extraction.documentMonth }],
       monthlyReminders: extraction.monthlyReminders,
-      sourceNotes: validateExtraction(extraction, source.filename).map(
-        (issue) => ({
-          attachmentId: source.attachmentId,
-          description: issue.description,
-          pages: issue.pages,
-        }),
-      ),
+      sourceNotes,
       weeks: extraction.weeks
         .filter(
           (week) =>
@@ -252,15 +277,10 @@ export function extractedPlans(
             week.endDate.slice(0, 7) >= month,
         )
         .map(({ pages: _pages, ...week }) => week),
-      days: extraction.days
-        .filter((day) => day.date.startsWith(`${month}-`))
-        .map(({ pages, ...day }) => ({
-          ...day,
-          sourceAttachmentId: source.attachmentId,
-          sourcePages: pages,
-        })),
-    }),
-  );
+      days,
+      ...(alternateDays.length ? { alternateDays } : {}),
+    });
+  });
 }
 
 // Dedicated monthly plans win overlapping dates; adjacent-month dates only fill gaps.
@@ -294,9 +314,6 @@ export function mergeExtractedPlan(
     if (chosen && JSON.stringify(chosen) !== JSON.stringify(day))
       alternatives.push(day);
   }
-  const unique = <T>(items: T[]) => [
-    ...new Map(items.map((item) => [JSON.stringify(item), item])).values(),
-  ];
   return planSchema.parse({
     ...primary,
     days: [...days.values()].sort((a, b) => a.date.localeCompare(b.date)),

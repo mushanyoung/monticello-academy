@@ -87,6 +87,36 @@ describe("lesson document rules", () => {
       sourcePages: [1, 2],
     });
   });
+  it("publishes distinct accounts of one date in the same PDF with their own pages", () => {
+    const extraction = fixtureExtraction();
+    const day = extraction.days[1];
+    if (!day) throw new Error("Missing spillover fixture");
+    const closure = {
+      ...day,
+      title: "School closed",
+      noSchool: true,
+      activities: [],
+      pages: [2],
+    };
+    extraction.days.push(closure, { ...closure });
+    const plans = extractedPlans(extraction, fixtureLessonSource);
+    expect(plans[0]?.alternateDays ?? []).toEqual([]);
+    const carryover = plans[1];
+    expect(carryover?.days).toHaveLength(1);
+    expect(carryover?.days[0]).toMatchObject({
+      date: day.date,
+      title: day.title,
+      sourcePages: [1, 2],
+    });
+    expect(carryover?.alternateDays).toHaveLength(1);
+    expect(carryover?.alternateDays?.[0]).toMatchObject({
+      date: day.date,
+      title: "School closed",
+      noSchool: true,
+      sourceAttachmentId: fixtureLessonSource.attachmentId,
+      sourcePages: [2],
+    });
+  });
   it("preserves dedicated monthly dates over carryovers regardless of arrival order", () => {
     const carryover = extractedPlans(
       fixtureExtraction(),

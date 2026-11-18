@@ -22,6 +22,7 @@ const chinese: Record<string, string> = {
   "Wear a blue shirt": "穿蓝色上衣",
   "A favorite book": "一本喜欢的书",
   "Weekly table: wear red": "周表：穿红色衣服",
+  "Calendar closure": "月历标注停课",
   "Calendar: wear blue. Weekly table: wear red. Both source entries are retained.":
     "月历：穿蓝色衣服。周表：穿红色衣服。两项原文记录均保留。",
 };

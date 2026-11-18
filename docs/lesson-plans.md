@@ -26,6 +26,8 @@ GET `/api/highlights?after=YYYY-MM-DD&class=` 返回严格晚于 after 的最早
 
 扩展协议包含 monthlyReminders、weeks（日期区间／主题／分类目标）、sources（原始 PDF 与邮件）及每日 sourceAttachmentId/sourcePages。跨月日期分开生成对应月份，carryover 标明仅来自相邻月；专属月份计划的重叠日期优先显示，相邻月的不同条目保存在 alternateDays 并在月计划和每日卡片一起展示。提醒、目标、每周重点合并保留，来源 PDF 始终可访问。单份 PDF 最多 60 个目标，跨来源合并最多 300 项。
 
+同一 PDF 的月历和周表也可能各列一次同一天。按提取顺序将第一条放入 days，其余不同记录放入该月的 alternateDays，各自保留附件和页码。内容和页码完全相同的重复记录只显示一次。管理接口导入的结构化计划仍要求 days 中日期唯一。
+
 `lesson_jobs` 按 PDF 内容地址和解析版本去重，保留处理状态、模型响应引用、候选结果和问题；`lesson_alerts` 保存待发送与已发送通知。它们在 D1 中持久化，后续后台重试不能依赖单次 HTTP 或 email 请求的生命周期。
 
 ## 自动处理

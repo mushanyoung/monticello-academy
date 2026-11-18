@@ -83,6 +83,33 @@ test("automatically parses PDFs, preserves source differences and delivers a not
     "Calendar: wear blue",
   );
   expect(daily.classes[0].weeklyFocus[0].focus[0].items).toContain("Letter Rr");
+  for (const [language, title] of [
+    ["en", "Calendar closure"],
+    ["zh", "月历标注停课"],
+  ]) {
+    await expect
+      .poll(
+        async () => {
+          const data = await (
+            await request.get(
+              `/api/highlights?date=2027-11-30&lang=${language}`,
+            )
+          ).json();
+          return data.classes[0].alternatives;
+        },
+        { timeout: 20000 },
+      )
+      .toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            title,
+            noSchool: true,
+            sourceAttachmentId: imported.attachmentId,
+            sourcePages: [2],
+          }),
+        ]),
+      );
+  }
   const searched = await (await request.get("/api/mail?q=letter%20rr")).json();
   expect(
     searched.items.some((mail: { id: string }) => mail.id === imported.id),

@@ -80,6 +80,17 @@ createServer(async (request, response) => {
       ];
       for (const day of extraction.days)
         day.reminders.push("Weekly table: wear red");
+      const day = extraction.days[0];
+      if (day)
+        extraction.days.push({
+          ...day,
+          title: "Calendar closure",
+          noSchool: true,
+          activities: [],
+          reminders: [],
+          bring: [],
+          pages: [2],
+        });
     }
     if (filename.includes("registration"))
       Object.assign(extraction, {
