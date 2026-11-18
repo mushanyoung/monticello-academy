@@ -174,17 +174,17 @@ export function Dashboard({
       document.removeEventListener("visibilitychange", update);
     };
   }, []);
+  const mailUrl = `/api/mail?${new URLSearchParams({ class: selected })}`;
   const daily = useApi<Highlights>(
     `/api/highlights?${new URLSearchParams({
       [tomorrow ? "after" : "date"]: today,
       class: selected,
     })}`,
+    mailUrl,
   );
   const date = tomorrow ? daily.data?.date : today;
   const skipsDays = Boolean(tomorrow && date && date !== addDays(today, 1));
-  const mail = useApi<MailPage>(
-    `/api/mail?${new URLSearchParams({ class: selected })}`,
-  );
+  const mail = useApi<MailPage>(mailUrl);
   return (
     <>
       <section className="daily-section" aria-labelledby="day-heading">

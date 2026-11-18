@@ -142,10 +142,7 @@ export function EmailContent({
           />
         ) : (
           <div className="mail-body">
-            {text ||
-              t(
-                "This email has no text body. See the attachments or download the original email.",
-              )}
+            {text || t("This email has no text body.")}
           </div>
         )}
       </section>

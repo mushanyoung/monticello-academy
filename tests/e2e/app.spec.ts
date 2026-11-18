@@ -153,23 +153,45 @@ test("paginates long mail lists without widening the viewport in either language
     ).toBe(true);
     const first = await page
       .locator(".mail-item")
-      .evaluateAll((items) => items.map((item) => item.getAttribute("href")));
+      .evaluateAll((items) =>
+        items.map((item) =>
+          new URL((item as HTMLAnchorElement).href).searchParams.get("id"),
+        ),
+      );
     await page.getByRole("link", { name: next, exact: true }).click();
     await expect(page).toHaveURL((url) => url.searchParams.get("page") === "2");
     await expect(page.locator(".mail-item")).toHaveCount(1);
-    expect(first).not.toContain(
-      await page.locator(".mail-item").getAttribute("href"),
+    const last = page.locator(".mail-item");
+    const detailUrl = await last.evaluate(
+      (item) => (item as HTMLAnchorElement).href,
     );
+    expect(first).not.toContain(new URL(detailUrl).searchParams.get("id"));
     const params = new URL(page.url()).searchParams;
     expect(params.get("q")).toBe(key);
     expect(params.get("class")).toBe("sunshine");
     expect(params.get("sort")).toBe("oldest");
+    await last.click();
+    await expect(page.locator(".mail-reader h2")).toBeVisible();
+    await page.locator(".back-link").click();
+    await expect(page).toHaveURL(
+      (url) =>
+        !url.searchParams.has("id") &&
+        url.searchParams.get("page") === "2" &&
+        url.searchParams.get("q") === key &&
+        url.searchParams.get("sort") === "oldest" &&
+        url.searchParams.get("class") === "sunshine",
+    );
+    await expect(page.locator(".mail-item")).toHaveCount(1);
     await page.getByRole("link", { name: previous, exact: true }).click();
     await expect(page.locator(".mail-item")).toHaveCount(30);
     expect(
       await page
         .locator(".mail-item")
-        .evaluateAll((items) => items.map((item) => item.getAttribute("href"))),
+        .evaluateAll((items) =>
+          items.map((item) =>
+            new URL((item as HTMLAnchorElement).href).searchParams.get("id"),
+          ),
+        ),
     ).toEqual(first);
     await page.goto("/?class=sunshine");
     await expect(page.locator(".recent-item").first()).toContainText(sender);
@@ -180,6 +202,39 @@ test("paginates long mail lists without widening the viewport in either language
           document.documentElement.clientWidth,
       ),
     ).toBe(true);
+  }
+});
+test("starts independent dashboard and reader requests together, including for missing mail", async ({
+  page,
+}) => {
+  const id = "f".repeat(64);
+  for (const [path, first, second] of [
+    ["/", "/api/highlights", "/api/mail"],
+    [`/?view=mail&id=${id}`, "/api/mail", `/api/mail/${id}`],
+  ] as const) {
+    const gate = Promise.withResolvers<void>();
+    const seen: string[] = [];
+    await page.route("**/api/**", async (route) => {
+      const url = new URL(route.request().url());
+      seen.push(url.pathname);
+      if (url.pathname === first) await gate.promise;
+      await route.continue();
+    });
+    try {
+      await page.goto(path);
+      await expect
+        .poll(() => seen)
+        .toEqual(expect.arrayContaining([first, second]));
+    } finally {
+      gate.resolve();
+    }
+    if (path === "/") await expect(page.locator(".day-grid")).toBeVisible();
+    else {
+      await expect(page.locator(".mail-reader [role=alert]")).toBeVisible();
+      await page.locator(".back-link").click();
+      await expect(page).toHaveURL((url) => !url.searchParams.has("id"));
+    }
+    await page.unrouteAll({ behavior: "wait" });
   }
 });
 test("shows load failure and retries without an endless loading state", async ({

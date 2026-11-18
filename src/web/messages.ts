@@ -102,8 +102,7 @@ export const messages = {
     "班级课程计划加入后，这里就会显示每日活动和注意事项。",
   "See the month's plan": "查看本月课程",
   "Visit classroom mail": "查看班级邮件",
-  "This email has no text body. See the attachments or download the original email.":
-    "这封邮件没有文字正文，请查看附件或下载原始邮件。",
+  "This email has no text body.": "这封邮件没有文字正文。",
   " in your notebook": "在手记中",
   "An update from the classroom.": "一条来自班级的新消息。",
   "No notes found this time.": "这次没有找到匹配的消息。",

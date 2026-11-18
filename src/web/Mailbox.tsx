@@ -7,29 +7,13 @@ import { EmailContent } from "./EmailContent";
 import { useI18n } from "./i18n";
 import { TranslationNotice } from "./TranslationNotice";
 
-function MailReader({
-  id,
-  selected,
-  q,
-  sort,
-}: {
-  id: string;
-  selected: string;
-  q: string;
-  sort: string;
-}) {
+function MailReader({ url }: { url: string }) {
   const { t, displayDate, language } = useI18n();
-  const mail = useApi<MailDetail>(`/api/mail/${id}`);
+  const mail = useApi<MailDetail>(url);
   if (!mail.data) return <LoadState error={mail.error} retry={mail.retry} />;
   const item = mail.data;
   return (
-    <article className="mail-reader">
-      <a
-        className="text-link back-link"
-        href={href({ view: "mail", class: selected, q, sort })}
-      >
-        {t("← Back to mailbox")}
-      </a>
+    <>
       <div className="badges">
         {item.class_ids.length ? (
           item.class_ids.map((c) => <ClassBadge key={c} id={c} />)
@@ -68,7 +52,7 @@ function MailReader({
         text={item.body_text}
         attachments={item.attachments}
       />
-    </article>
+    </>
   );
 }
 export function Mailbox({
@@ -84,7 +68,9 @@ export function Mailbox({
   const page = params.get("page") || "1";
   const id = params.get("id");
   const query = new URLSearchParams({ class: selected, q, sort, page });
-  const mail = useApi<MailPage>(`/api/mail?${query}`);
+  const detailUrl = id ? `/api/mail/${encodeURIComponent(id)}` : undefined;
+  const mail = useApi<MailPage>(`/api/mail?${query}`, detailUrl);
+  const listParams = { view: "mail", class: selected, q, sort, page };
   return (
     <div className={`mail-page ${id ? "reading" : ""}`}>
       <h1 className="sr-only">{t("Mailbox")}</h1>
@@ -142,14 +128,7 @@ export function Mailbox({
                     <a
                       key={item.id}
                       className={`mail-item ${id === item.id ? "active" : ""}`}
-                      href={href({
-                        view: "mail",
-                        class: selected,
-                        q,
-                        sort,
-                        page,
-                        id: item.id,
-                      })}
+                      href={href({ ...listParams, id: item.id })}
                     >
                       <div className="mail-item-top">
                         <span>{item.sender_name || item.sender}</span>
@@ -256,7 +235,14 @@ export function Mailbox({
             <LoadState error={mail.error} retry={mail.retry} />
           )}
         </section>
-        {id && <MailReader id={id} selected={selected} q={q} sort={sort} />}
+        {detailUrl && (
+          <article className="mail-reader">
+            <a className="text-link back-link" href={href(listParams)}>
+              {t("← Back to mailbox")}
+            </a>
+            <MailReader url={detailUrl} />
+          </article>
+        )}
       </div>
     </div>
   );

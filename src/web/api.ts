@@ -24,19 +24,27 @@ async function load(url: string, reload = false): Promise<ApiResult> {
   }
 }
 
-export function useApi<T>(sourceUrl: string) {
-  const { language } = useLanguage();
-  const requests = use(ApiRequestsContext);
-  if (!requests) throw new Error("Missing API request scope");
-  const [, refresh] = useState(0);
+function localizedUrl(sourceUrl: string, language: string) {
   const localized = new URL(sourceUrl, window.location.origin);
   localized.searchParams.set("lang", language);
-  const url = `${localized.pathname}${localized.search}`;
+  return `${localized.pathname}${localized.search}`;
+}
+function requestFor(requests: ApiRequests, url: string) {
   let request = requests.get(url);
   if (!request) {
     request = load(url);
     requests.set(url, request);
   }
+  return request;
+}
+export function useApi<T>(sourceUrl: string, preloadUrl?: string) {
+  const { language } = useLanguage();
+  const requests = use(ApiRequestsContext);
+  if (!requests) throw new Error("Missing API request scope");
+  const [, refresh] = useState(0);
+  const url = localizedUrl(sourceUrl, language);
+  const request = requestFor(requests, url);
+  if (preloadUrl) requestFor(requests, localizedUrl(preloadUrl, language));
   const result = use(request);
   return {
     data: result.data as T | null,
