@@ -1033,15 +1033,26 @@ h2 {
   line-height: 1.8;
   font-size: var(--text-body);
 }
-.objectives {
+.objectives,
+.plan-notes {
   background: #f0e8f5;
   border-radius: 6px;
+}
+.objectives {
   padding: 18px 22px;
   margin-bottom: 25px;
 }
-.objectives ul {
-  padding-left: 17px;
-  margin: 10px 0 0;
+.plan-notes {
+  margin-bottom: 8px;
+}
+.plan-notes summary {
+  min-height: 44px;
+  padding: 12px 16px;
+  color: var(--color-purple);
+}
+.plan-notes ul {
+  padding: 0 16px 16px 34px;
+  list-style: disc;
   font-size: var(--text-body);
   line-height: 1.9;
   color: #7b6088;

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { type ReactNode, useEffect } from "react";
 import { CLASSES } from "../shared/classes";
 import { campusDate } from "../shared/dates";
 import type { StoredPlan } from "../shared/plans";
@@ -8,6 +8,22 @@ import { ClassBadge, ClassFilters, Empty, LoadState } from "./components";
 import { useI18n } from "./i18n";
 import { DayDetails } from "./lesson-details";
 import { TranslationNotice } from "./TranslationNotice";
+
+function PlanNotes({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <details className="plan-notes">
+      <summary className="small-label">{title}</summary>
+      <ul>{children}</ul>
+    </details>
+  );
+}
+
 export function Plans({
   selected,
   month,
@@ -132,50 +148,37 @@ function MonthlyPlans({
                     </p>
                   )}
                   {!!plan.monthlyReminders?.length && (
-                    <div className="objectives">
-                      <span className="small-label">{t("ALL MONTH LONG")}</span>
-                      <ul>
-                        {plan.monthlyReminders.map((item) => (
-                          <li key={item}>{item}</li>
-                        ))}
-                      </ul>
-                    </div>
+                    <PlanNotes title={t("ALL MONTH LONG")}>
+                      {plan.monthlyReminders.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </PlanNotes>
                   )}
                   {!!plan.sourceNotes?.length && (
-                    <div className="objectives">
-                      <span className="small-label">
-                        {t("NOTES FROM THE ORIGINAL SOURCES")}
-                      </span>
-                      <ul>
-                        {plan.sourceNotes.map((note) => (
-                          <li key={JSON.stringify(note)}>
-                            <span>{note.description}</span>{" "}
-                            <a
-                              className="text-link"
-                              href={`/api/attachments/${note.attachmentId}?preview=1#page=${note.pages[0] || 1}`}
-                            >
-                              {note.pages.length
-                                ? t("PDF · p. {pages}", {
-                                    pages: note.pages.join(", "),
-                                  })
-                                : t("PDF")}
-                            </a>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                    <PlanNotes title={t("NOTES FROM THE ORIGINAL SOURCES")}>
+                      {plan.sourceNotes.map((note) => (
+                        <li key={JSON.stringify(note)}>
+                          <span>{note.description}</span>{" "}
+                          <a
+                            className="text-link"
+                            href={`/api/attachments/${note.attachmentId}?preview=1#page=${note.pages[0] || 1}`}
+                          >
+                            {note.pages.length
+                              ? t("PDF · p. {pages}", {
+                                  pages: note.pages.join(", "),
+                                })
+                              : t("PDF")}
+                          </a>
+                        </li>
+                      ))}
+                    </PlanNotes>
                   )}
                   {plan.objectives.length > 0 && (
-                    <div className="objectives">
-                      <span className="small-label">
-                        {t("LITTLE STEPS WE'RE WORKING ON")}
-                      </span>
-                      <ul>
-                        {plan.objectives.map((o) => (
-                          <li key={o}>{o}</li>
-                        ))}
-                      </ul>
-                    </div>
+                    <PlanNotes title={t("LITTLE STEPS WE'RE WORKING ON")}>
+                      {plan.objectives.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </PlanNotes>
                   )}
                   <div className="plan-days">
                     {plan.weeks?.map((week) => (

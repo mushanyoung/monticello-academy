@@ -228,11 +228,37 @@ test("translates current plans and daily details without dropping conflicting so
   await expect(
     page.getByRole("heading", { name: "发现的一个月" }),
   ).toBeVisible();
+  const notes = page.locator("article.plan > details");
+  await expect(notes.locator("summary")).toHaveText([
+    "整月都要记得",
+    "原始资料中的说明",
+    "正在练习的小本领",
+  ]);
+  await expect(notes.locator("li:visible")).toHaveCount(0);
+  const reminders = notes.getByText("整月都要记得", { exact: true });
+  const reminder = notes.getByText("为所有物品写上姓名", { exact: true });
+  await reminders.press("Enter");
+  await expect(reminder).toBeVisible();
+  await notes.getByText("原始资料中的说明", { exact: true }).click();
+  const sourceNote = notes.getByText(
+    "月历：穿蓝色衣服。周表：穿红色衣服。两项原文记录均保留。",
+    { exact: true },
+  );
+  await expect(sourceNote).toBeVisible();
   await expect(
-    page.getByText("月历：穿蓝色衣服。周表：穿红色衣服。两项原文记录均保留。", {
-      exact: true,
-    }),
-  ).toBeVisible();
+    notes.getByRole("link", { name: "PDF · 页码：1" }),
+  ).toHaveAttribute(
+    "href",
+    `/api/attachments/${attachmentId}?preview=1#page=1`,
+  );
+  await expect(reminder).toBeVisible();
+  await reminders.press("Space");
+  await expect(reminder).toBeHidden();
+  await expect(sourceNote).toBeVisible();
+  const objective = notes.getByText("认识熟悉的地方", { exact: true });
+  await expect(objective).toBeHidden();
+  await notes.getByText("正在练习的小本领", { exact: true }).click();
+  await expect(objective).toBeVisible();
   await page.screenshot({
     path: info.outputPath("translated-plan-zh.png"),
     fullPage: true,

@@ -159,21 +159,33 @@ test("automatically parses PDFs, preserves source differences and delivers a not
     (await (await request.get(`/api/mail/${imported.id}`)).json()).class_ids,
   ).toContain("sunshine");
   await page.goto("/?view=plans&month=2027-11&class=sunshine");
-  await expect(page.getByText("NOTES FROM THE ORIGINAL SOURCES")).toBeVisible();
+  const sourceNote =
+    "Calendar: wear blue. Weekly table: wear red. Both source entries are retained.";
+  for (const [heading, content] of [
+    ["ALL MONTH LONG", "Label all belongings"],
+    ["NOTES FROM THE ORIGINAL SOURCES", sourceNote],
+    ["LITTLE STEPS WE'RE WORKING ON", "Recognize familiar places"],
+  ] as const) {
+    const toggle = page.getByText(heading, { exact: true });
+    const section = page.locator("details").filter({ has: toggle });
+    const items = section.getByText(content, { exact: true });
+    const visibleItems = items.filter({ visible: true });
+    await expect(toggle).toBeVisible();
+    const count = await items.count();
+    expect(count).toBeGreaterThan(0);
+    await expect(visibleItems).toHaveCount(0);
+    await toggle.click();
+    await expect(visibleItems).toHaveCount(count);
+    await toggle.click();
+    await expect(visibleItems).toHaveCount(0);
+  }
+  const today = page.locator("details").filter({
+    has: page.locator("summary").getByText("Exploring our neighborhood"),
+  });
   await expect(
-    page
-      .getByText(
-        "Calendar: wear blue. Weekly table: wear red. Both source entries are retained.",
-      )
-      .first(),
-  ).toBeVisible();
-  await expect(page.getByText("ALL MONTH LONG")).toBeVisible();
-  await page
-    .getByText("Exploring our neighborhood", { exact: true })
-    .first()
-    .click();
-  await expect(
-    page.getByText("Weekly table: wear red", { exact: false }).first(),
+    today
+      .locator(".plan-day-body > p")
+      .filter({ hasText: "Weekly table: wear red" }),
   ).toBeVisible();
   expect(
     await page.evaluate(
