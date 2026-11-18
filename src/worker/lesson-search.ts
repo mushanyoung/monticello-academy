@@ -5,6 +5,8 @@ export async function indexLessonText(
   extraction: LessonExtraction,
 ) {
   if (!extraction.isLessonPlan) return;
+  if (!extraction.classId)
+    throw new Error("A lesson PDF needs a classroom to be indexed.");
   const text = [
     extraction.title,
     extraction.theme,
@@ -33,9 +35,17 @@ export async function indexLessonText(
     .join("\n")
     .toLowerCase()
     .slice(0, 100_000);
-  await env.DB.prepare(
-    "UPDATE attachments SET extracted_text=?,text_status='extracted' WHERE object_key=?",
-  )
-    .bind(text, contentKey)
-    .run();
+  await env.DB.batch([
+    env.DB.prepare(`INSERT INTO lesson_pdf_index(content_key,class_id,search_text) VALUES(?,?,?)
+      ON CONFLICT(content_key) DO UPDATE SET class_id=excluded.class_id,search_text=excluded.search_text`).bind(
+      contentKey,
+      extraction.classId,
+      text,
+    ),
+    env.DB.prepare(`INSERT OR IGNORE INTO message_classes(message_id,class_id)
+      SELECT message_id,? FROM attachments WHERE object_key=?`).bind(
+      extraction.classId,
+      contentKey,
+    ),
+  ]);
 }

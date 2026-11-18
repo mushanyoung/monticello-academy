@@ -67,7 +67,7 @@ cf 配置声明 LessonWorkflow、LESSONS workflow binding、LESSON_EMAIL sendEma
 
 ## 翻译与历史回填
 
-同一 OPENAI_API_KEY 用于邮件、课程的双语翻译；无需新的浏览器密钥。部署声明 TranslationWorkflow 和 TRANSLATIONS binding，应用 0005 迁移后部署。LESSON_CONFIG.enabled 也控制自动翻译；新邮件及课程写入自动入队，定时补偿会扫描所有未处理的历史来源。
+同一 OPENAI_API_KEY 用于邮件、课程的双语翻译；无需新的浏览器密钥。部署声明 TranslationWorkflow 和 TRANSLATIONS binding，先应用待执行迁移，再部署 Worker。0005 创建翻译表，0006 建立各封邮件共用的课程 PDF 索引。LESSON_CONFIG.enabled 也控制自动翻译；新邮件及课程写入自动入队，定时补偿会扫描所有未处理的历史来源。
 
 下列接口均要求 Bearer IMPORT_TOKEN，不向公开页面返回私有模型输入：
 

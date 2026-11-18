@@ -38,6 +38,7 @@ export async function listMail(db: D1Database, url: URL) {
     throw new HttpError(400, "Invalid sort order.");
   const terms: string[] = [];
   const values: string[] = [];
+  let matchingPlans = "";
   if (selected) {
     terms.push(
       "EXISTS(SELECT 1 FROM message_classes mc WHERE mc.message_id=m.id AND mc.class_id=?)",
@@ -45,28 +46,37 @@ export async function listMail(db: D1Database, url: URL) {
     values.push(selected);
   }
   if (q) {
+    // Materialize the matching plans once per search, then resolve canonical and forwarded sources.
+    matchingPlans = `WITH matches AS MATERIALIZED (
+      SELECT p.source_message_id,p.document FROM plan_localizations pl JOIN lesson_plans p
+      ON p.id=pl.plan_id AND p.document=pl.source_document WHERE instr(lower(pl.document),?)>0
+    ), sources AS (
+      SELECT json_extract(s.value,'$.messageId') message_id,json_extract(s.value,'$.attachmentId') attachment_id
+      FROM matches, json_each(matches.document,'$.sources') s
+    ), plan_mail AS (
+      SELECT source_message_id FROM matches UNION SELECT message_id FROM sources UNION
+      SELECT copy.message_id FROM sources JOIN attachments original ON original.id=sources.attachment_id
+      JOIN lesson_pdf_index i ON i.content_key=original.object_key JOIN attachments copy ON copy.object_key=i.content_key
+    ) `;
+    values.unshift(q.toLowerCase());
     terms.push(
-      `(instr(m.search_text,?) > 0 OR EXISTS(SELECT 1 FROM attachments a WHERE a.message_id=m.id AND instr(a.extracted_text,?) > 0)
-      OR EXISTS(SELECT 1 FROM mail_localizations ml WHERE ml.message_id=m.id AND instr(ml.search_text,?)>0)
-      OR EXISTS(SELECT 1 FROM plan_localizations pl JOIN lesson_plans p ON p.id=pl.plan_id AND p.document=pl.source_document WHERE instr(lower(pl.document),?)>0 AND (p.source_message_id=m.id OR EXISTS(SELECT 1 FROM json_each(pl.document,'$.sources') s WHERE json_extract(s.value,'$.messageId')=m.id))))`,
+      `(instr(m.search_text,?) > 0 OR EXISTS(SELECT 1 FROM attachments a LEFT JOIN lesson_pdf_index i ON i.content_key=a.object_key
+       WHERE a.message_id=m.id AND instr(coalesce(i.search_text,lower(a.extracted_text)),?)>0)
+      OR EXISTS(SELECT 1 FROM mail_localizations ml WHERE ml.message_id=m.id AND ml.source_document=m.raw_key AND instr(ml.search_text,?)>0)
+      OR m.id IN (SELECT * FROM plan_mail))`,
     );
-    values.push(
-      q.toLowerCase(),
-      q.toLowerCase(),
-      q.toLowerCase(),
-      q.toLowerCase(),
-    );
+    values.push(q.toLowerCase(), q.toLowerCase(), q.toLowerCase());
   }
   const where = terms.length ? ` WHERE ${terms.join(" AND ")}` : "";
   const [rows, count] = await Promise.all([
     db
       .prepare(
-        `${summarySql(language)}${where} ORDER BY m.sent_at ${sort === "oldest" ? "ASC" : "DESC"},m.id LIMIT 30 OFFSET ?`,
+        `${matchingPlans}${summarySql(language)}${where} ORDER BY m.sent_at ${sort === "oldest" ? "ASC" : "DESC"},m.id LIMIT 30 OFFSET ?`,
       )
       .bind(...values, (page - 1) * 30)
       .all<MailRow>(),
     db
-      .prepare(`SELECT count(*) total FROM messages m${where}`)
+      .prepare(`${matchingPlans}SELECT count(*) total FROM messages m${where}`)
       .bind(...values)
       .first<{ total: number }>(),
   ]);
@@ -100,7 +110,8 @@ export async function detail(
     }>();
   const attachments = await db
     .prepare(
-      "SELECT id,filename,content_type,size,text_status FROM attachments WHERE message_id=? ORDER BY rowid",
+      `SELECT a.id,a.filename,a.content_type,a.size,CASE WHEN i.content_key IS NULL THEN a.text_status ELSE 'extracted' END text_status
+       FROM attachments a LEFT JOIN lesson_pdf_index i ON i.content_key=a.object_key WHERE a.message_id=? ORDER BY a.rowid`,
     )
     .bind(id)
     .all<{

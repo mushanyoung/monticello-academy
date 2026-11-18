@@ -114,6 +114,38 @@ test("automatically parses PDFs, preserves source differences and delivers a not
   expect(
     searched.items.some((mail: { id: string }) => mail.id === imported.id),
   ).toBe(true);
+  const copy = await request.post("/api/import", {
+    headers,
+    data: imported.raw
+      .replace(/^Subject:.*$/m, "Subject: An updated attachment")
+      .replace(
+        /^Message-ID:.*$/m,
+        `Message-ID: <${crypto.randomUUID()}@example.com>`,
+      )
+      .replace(/filename="[^"]+"/, 'filename="copy.pdf"')
+      .replace("Classroom lesson plan attached.", "Please see the attachment."),
+  });
+  expect(copy.status()).toBe(201);
+  const { id: copyId } = await copy.json();
+  expect(copyId).not.toBe(imported.id);
+  const copyDetail = await (await request.get(`/api/mail/${copyId}`)).json();
+  expect(copyDetail.class_ids).toEqual(["sunshine"]);
+  expect(copyDetail.attachments[0].text_status).toBe("extracted");
+  for (const q of ["Letter Rr", "字母 Rr"]) {
+    const ids: string[] = [];
+    let pages = 1;
+    for (let pageNumber = 1; pageNumber <= pages; pageNumber++) {
+      const result = await (
+        await request.get(
+          `/api/mail?${new URLSearchParams({ class: "sunshine", q, page: String(pageNumber) })}`,
+        )
+      ).json();
+      ids.push(...result.items.map((item: { id: string }) => item.id));
+      pages = Math.ceil(result.total / result.pageSize);
+    }
+    expect(ids).toEqual(expect.arrayContaining([imported.id, copyId]));
+  }
+  expect((await jobs(request)).jobs).toHaveLength(before);
   expect(
     (
       await request.post(`/api/admin/lessons/${job?.id}/index`, { headers })
