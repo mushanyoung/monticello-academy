@@ -1,4 +1,9 @@
-import { type APIRequestContext, expect, test } from "@playwright/test";
+import {
+  type APIRequestContext,
+  expect,
+  type Locator,
+  test,
+} from "@playwright/test";
 import { addDays } from "../../src/shared/dates";
 import type { LessonPlan, StoredPlan } from "../../src/shared/plans";
 import { htmlMail } from "../fixtures/html-mail";
@@ -30,7 +35,13 @@ async function seedWeek(request: APIRequestContext) {
   const day = {
     ...original,
     title: "Exploring our neighborhood",
+    activities: [
+      { area: "Art", description: "Draw a familiar place" },
+      ...original.activities,
+    ],
     bring: ["A favorite book"],
+    reminders: ["Wear a blue shirt"],
+    note: "Label all belongings",
     sourceAttachmentId: pdf.id,
     sourcePages: [1],
   };
@@ -52,7 +63,11 @@ async function seedWeek(request: APIRequestContext) {
   const base: LessonPlan = {
     ...december,
     sources: [source],
-    days: [day, { ...day, date: "2043-12-27", title: "Before the week" }],
+    days: [
+      day,
+      { ...day, date: "2043-12-31" },
+      { ...day, date: "2043-12-27", title: "Before the week" },
+    ],
     alternateDays: [closure],
     weeks: [
       focus,
@@ -123,6 +138,36 @@ async function seedWeek(request: APIRequestContext) {
   return pdf.id as string;
 }
 
+async function expectDayLayout(agenda: Locator, wide: boolean) {
+  await expect
+    .poll(() =>
+      agenda.locator(".week-day").evaluateAll((days) => {
+        const rects = days.map((day) => day.getBoundingClientRect());
+        return {
+          rows: new Set(rects.map((r) => Math.round(r.y))).size,
+          columns: new Set(rects.map((r) => Math.round(r.x))).size,
+          ordered: rects.every((r, index) => {
+            const previous = rects[index - 1];
+            return (
+              !previous ||
+              r.x >= previous.right - 1 ||
+              r.y >= previous.bottom - 1
+            );
+          }),
+          equalWidths: rects.every(
+            (r) => Math.abs(r.width - (rects[0]?.width || 0)) < 1,
+          ),
+        };
+      }),
+    )
+    .toEqual({
+      rows: wide ? 1 : 5,
+      columns: wide ? 5 : 1,
+      ordered: true,
+      equalWidths: true,
+    });
+}
+
 test("reads five school days across years in both languages and keeps weekday source differences", async ({
   request,
   page,
@@ -160,6 +205,7 @@ test("reads five school days across years in both languages and keeps weekday so
     ).toHaveAttribute("aria-current", "page");
     await expect(page).toHaveURL(/week=2043-12-28/);
     await expect(agenda.locator("time")).toHaveCount(5);
+    await expectDayLayout(agenda, !isMobile);
     expect(
       await agenda
         .locator("time")
@@ -193,19 +239,62 @@ test("reads five school days across years in both languages and keeps weekday so
     await expect(agenda).not.toContainText("Following Monday");
     await expect(agenda).not.toContainText("Before the week");
     const record = row(monday).locator(".week-entry");
-    await expect(record.locator("summary")).toContainText(
-      chinese ? "一本喜欢的书" : "A favorite book",
-    );
-    await record.locator("summary").focus();
-    await record.locator("summary").press("Enter");
+    const toggle = record.getByRole("button");
+    const body = record.locator(".plan-day-body");
+    const title = chinese ? "探索我们的社区" : "Exploring our neighborhood";
+    await expect(
+      record.getByRole("heading", { name: title, exact: true }),
+    ).toBeVisible();
+    if (isMobile) {
+      await expect(toggle).toHaveAccessibleName(title);
+      await expect(toggle).toHaveAttribute(
+        "aria-controls",
+        (await body.getAttribute("id")) || "",
+      );
+      await expect(toggle).toHaveAttribute("aria-expanded", "false");
+      await expect(body).toBeHidden();
+      await expect(row("2043-12-31").getByRole("button")).toHaveAttribute(
+        "aria-expanded",
+        "true",
+      );
+      await expect(record.locator(".week-preview")).toContainText(
+        chinese ? "一本喜欢的书" : "A favorite book",
+      );
+      await toggle.focus();
+      await toggle.press("Enter");
+      await expect(toggle).toHaveAttribute("aria-expanded", "true");
+    } else {
+      await expect(toggle).toHaveCount(0);
+      await expect(
+        agenda.locator(".week-entry > .plan-day-body:visible"),
+      ).toHaveCount(3);
+    }
+    await expect(body).toBeVisible();
+    for (const text of chinese
+      ? ["画一个熟悉的地方", "一本喜欢的书", "穿蓝色上衣", "为所有物品写上姓名"]
+      : [
+          "Draw a familiar place",
+          "A favorite book",
+          "Wear a blue shirt",
+          "Label all belongings",
+        ]) {
+      await expect(
+        body.locator(":scope > p").filter({ hasText: text }),
+      ).toBeVisible();
+    }
+    await expect(record.locator(".objectives")).toBeVisible();
     await expect(record.locator(".objectives")).toContainText(
       chinese ? "月历标注停课" : "Calendar closure",
     );
+    await expect(record.locator('a[href$="#page=2"]')).toBeVisible();
     await expect(record.locator(`a[href$="#page=2"]`)).toHaveAttribute(
       "href",
       `/api/attachments/${pdf}?preview=1#page=2`,
     );
-    await record.locator("summary").press("Enter");
+    if (isMobile) {
+      await toggle.press("Space");
+      await expect(body).toBeHidden();
+    }
     await expect(focus.locator(".week-theme")).toHaveCount(1);
     if (isMobile) {
       const jump = agenda.getByRole("link", {
@@ -250,6 +339,42 @@ test("reads five school days across years in both languages and keeps weekday so
   await expect(agenda.locator("li").first().locator(".week-entry")).toHaveCount(
     2,
   );
+  if (!isMobile) {
+    const mondayEntries = agenda
+      .locator(".week-day")
+      .first()
+      .locator(".week-entry");
+    await expect(mondayEntries.locator(".badge")).toHaveText([
+      "阳光班",
+      "两岁班",
+    ]);
+    await expect(mondayEntries.locator(".plan-day-body:visible")).toHaveCount(
+      2,
+    );
+    const viewport = page.viewportSize();
+    if (!viewport) throw new Error("Missing desktop viewport");
+    await page.setViewportSize({ width: 1000, height: viewport.height });
+    await expectDayLayout(agenda, false);
+    const compact = mondayEntries.first().getByRole("button");
+    await compact.click();
+    await expect(compact).toHaveAttribute("aria-expanded", "true");
+    await page.setViewportSize(viewport);
+    await expectDayLayout(agenda, true);
+    await expect(mondayEntries.getByRole("button")).toHaveCount(0);
+    await expect(mondayEntries.locator(".plan-day-body:visible")).toHaveCount(
+      2,
+    );
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = "125%";
+    });
+    await expectDayLayout(agenda, false);
+    await expect(compact).toHaveAttribute("aria-expanded", "true");
+    await expect(mondayEntries.nth(1).locator(".plan-day-body")).toBeHidden();
+    await page.evaluate(() =>
+      document.documentElement.style.removeProperty("font-size"),
+    );
+    await expectDayLayout(agenda, true);
+  }
   await filters.getByRole("link", { name: "两岁班" }).click();
   await expect(agenda).toContainText("Music circle");
   await page.getByRole("link", { name: "下一周", exact: true }).click();

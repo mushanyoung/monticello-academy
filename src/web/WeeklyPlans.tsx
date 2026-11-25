@@ -1,3 +1,4 @@
+import { useId, useState } from "react";
 import { CLASSES, type ClassId } from "../shared/classes";
 import {
   addDays,
@@ -24,46 +25,63 @@ function WeekEntry({
   day,
   alternatives,
   classroom,
+  all,
   today,
 }: {
   day: LessonDay;
   alternatives: LessonDay[];
-  classroom?: ClassId;
+  classroom: ClassId;
+  all: boolean;
   today: boolean;
 }) {
   const { t } = useI18n();
+  const bodyId = useId();
+  const [userExpanded, setUserExpanded] = useState<boolean>();
+  const expanded = userExpanded ?? (today && !all);
   const preview = day.bring[0]
     ? `${t("Bring:")} ${day.bring[0]}`
     : day.reminders[0];
   return (
-    <details className="week-entry" open={today && !classroom}>
-      <summary>
-        <span className="week-entry-copy">
-          {(classroom || day.noSchool || alternatives.length > 0) && (
-            <span className="week-entry-labels">
-              {classroom && <ClassBadge id={classroom} />}
-              {day.noSchool && (
-                <span className="week-closure">{t("No school")}</span>
-              )}
-              {alternatives.length > 0 && (
-                <span className="week-other-source">
-                  {t("Additional source entry")}
-                </span>
-              )}
-            </span>
-          )}
-          <strong>{day.title}</strong>
-          {preview && (
-            <span className="week-preview">
-              <Icon name="check" size={15} />
-              <span>{preview}</span>
-            </span>
-          )}
-        </span>
-        <Icon name="chevron" size={17} />
-      </summary>
-      <PlanDayBody day={day} alternatives={alternatives} />
-    </details>
+    <article
+      className="week-entry"
+      data-classroom={classroom}
+      data-expanded={expanded}
+    >
+      <header className="week-entry-heading">
+        {(all || day.noSchool || alternatives.length > 0) && (
+          <span className="week-entry-labels">
+            {all && <ClassBadge id={classroom} />}
+            {day.noSchool && (
+              <span className="week-closure">{t("No school")}</span>
+            )}
+            {alternatives.length > 0 && (
+              <span className="week-other-source">
+                {t("Additional source entry")}
+              </span>
+            )}
+          </span>
+        )}
+        <h5 className="week-entry-title">
+          <span>{day.title}</span>
+          <button
+            type="button"
+            aria-controls={bodyId}
+            aria-expanded={expanded}
+            onClick={() => setUserExpanded(!expanded)}
+          >
+            {day.title}
+            <Icon name="chevron" size={17} />
+          </button>
+        </h5>
+        {preview && (
+          <span className="week-preview">
+            <Icon name="check" size={15} />
+            <span>{preview}</span>
+          </span>
+        )}
+      </header>
+      <PlanDayBody id={bodyId} day={day} alternatives={alternatives} />
+    </article>
   );
 }
 
@@ -104,7 +122,8 @@ function WeekAgenda({
                     key={id}
                     day={day}
                     alternatives={alternatives}
-                    classroom={all ? id : undefined}
+                    classroom={id}
+                    all={all}
                     today={today === date}
                   />,
                 ]
@@ -116,7 +135,7 @@ function WeekAgenda({
               className="week-day"
               aria-current={today === date ? "date" : undefined}
             >
-              <div className="week-date">
+              <h4 className="week-date">
                 <time dateTime={date}>
                   <span className="sr-only">
                     {displayDate(date, { dateStyle: "full" })}
@@ -129,7 +148,7 @@ function WeekAgenda({
                 {today === date && (
                   <span className="week-today">{t("Today")}</span>
                 )}
-              </div>
+              </h4>
               <div className="week-entries">
                 {entries.length ? (
                   entries

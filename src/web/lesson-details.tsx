@@ -37,18 +37,22 @@ export function DayDetails({ day }: { day: LessonDay }) {
 }
 
 export function PlanDayBody({
+  id,
   day,
   alternatives,
 }: {
+  id?: string;
   day: LessonDay;
   alternatives?: LessonDay[];
 }) {
   const { t } = useI18n();
   return (
-    <div className="plan-day-body">
+    <div className="plan-day-body" id={id}>
       {day.activities.map((a) => (
-        <p key={`${a.area}-${a.description}`}>
-          <strong>{a.area}</strong> — {a.description}
+        <p className="plan-activity" key={`${a.area}-${a.description}`}>
+          <strong>{a.area}</strong>
+          <span className="activity-separator"> — </span>
+          {a.description}
         </p>
       ))}
       {day.bring.length > 0 && (

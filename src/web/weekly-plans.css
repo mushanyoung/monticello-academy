@@ -87,7 +87,7 @@
 }
 .week-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.85fr) minmax(236px, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   align-items: start;
   gap: clamp(16px, 2vw, 28px);
 }
@@ -112,7 +112,15 @@
   line-height: 1.35;
 }
 .week-focus-jump {
-  display: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  color: #684682;
+  font-size: var(--text-small);
+}
+.week-focus-jump svg {
+  transform: rotate(90deg);
 }
 .week-days {
   list-style: none;
@@ -161,7 +169,6 @@
 .week-entry + .week-entry {
   border-top: 1px dashed #e3d8df;
 }
-.week-entry summary,
 .week-theme summary,
 .week-references summary {
   display: flex;
@@ -172,30 +179,53 @@
   list-style: none;
   color: #493852;
 }
-:where(.week-entry, .week-theme, .week-references)
-  summary::-webkit-details-marker {
+:where(.week-theme, .week-references) summary::-webkit-details-marker {
   display: none;
 }
-:where(.week-entry, .week-theme, .week-references)[open]
-  > :where(summary)
-  > svg {
+:where(.week-theme, .week-references)[open] > :where(summary) > svg {
   transform: rotate(90deg);
 }
-.week-entry summary {
-  padding: 6px 2px;
-}
-.week-entry :where(summary) > svg,
 .week-theme :where(summary) > svg {
   color: #84658e;
 }
-.week-entry-copy {
+.week-entry-heading {
+  position: relative;
   display: grid;
+  align-content: center;
   gap: 4px;
-  min-width: 0;
+  padding: 6px 2px;
 }
-.week-entry-copy > strong {
+.week-entry-title {
+  margin: 0;
+  color: #493852;
   font-size: var(--text-body);
+  font-weight: 650;
   line-height: 1.45;
+}
+.week-entry-title > span {
+  display: none;
+}
+.week-entry-title button {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: transparent;
+  color: inherit;
+  text-align: start;
+}
+.week-entry-title button::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+}
+.week-entry-title svg {
+  color: #84658e;
+}
+.week-entry-title :where([aria-expanded="true"]) svg {
+  transform: rotate(90deg);
 }
 .week-entry-labels,
 .week-preview {
@@ -233,7 +263,8 @@
   -webkit-line-clamp: 2;
   overflow: hidden;
 }
-.week-entry[open] .week-preview {
+.week-entry[data-expanded="true"] .week-preview,
+.week-entry:where([data-expanded="false"]) > .plan-day-body {
   display: none;
 }
 .week-entry > .plan-day-body {
@@ -315,20 +346,153 @@
   flex-direction: column;
   margin-top: 8px;
 }
-@container (max-width: 720px) {
+@container (720px < width < 55rem) {
   .week-layout {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1.85fr) minmax(236px, 1fr);
   }
   .week-focus-jump {
-    display: inline-flex;
+    display: none;
+  }
+}
+@container (min-width: 55rem) {
+  .week-agenda {
+    padding: 0;
+  }
+  .week-section-heading {
+    padding: 6px 18px;
+  }
+  .week-days {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+  .week-day {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 0;
+    padding: 0;
+  }
+  .week-day + .week-day {
+    border-inline-start: 1px solid #e1d8cf;
+  }
+  .week-date {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 4px;
-    min-height: 44px;
-    color: #684682;
+    min-height: 58px;
+    padding: 6px 12px;
+    border-bottom: 1px solid #e1d8cf;
+    background: #f7f2ec;
+  }
+  .week-date time {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 0;
+  }
+  .week-date :where(time) strong {
+    display: grid;
+    place-items: center;
+    min-width: 2.125rem;
+    min-height: 2.125rem;
+    font-size: 1.6rem;
+  }
+  .week-day[aria-current] .week-date {
+    background: #efe7f4;
+    box-shadow: inset 0 -2px #816293;
+  }
+  .week-day[aria-current] time {
+    background: transparent;
+  }
+  .week-day:where([aria-current]) :where(time) strong {
+    border-radius: 50%;
+    background: #694b80;
+    color: white;
+  }
+  .week-entries {
+    display: grid;
+    align-self: stretch;
+    gap: 10px;
+    padding: 10px 7px 14px;
+  }
+  .week-entry {
+    --entry-accent: #856597;
+    --entry-paper: #f2edf6;
+    min-width: 0;
+    padding: 9px 10px;
+    border-inline-start: 3px solid var(--entry-accent);
+    border-radius: 5px;
+    background: var(--entry-paper);
+  }
+  .week-entry[data-classroom="sunshine"] {
+    --entry-accent: #b67742;
+    --entry-paper: #fcf1e3;
+  }
+  .week-entry[data-classroom="twos"] {
+    --entry-accent: #758767;
+    --entry-paper: #eff3e9;
+  }
+  .week-entry + .week-entry {
+    border-top: 0;
+  }
+  .week-entry-heading {
+    gap: 6px;
+    padding: 0;
+  }
+  .week-entry-title > span {
+    display: block;
+  }
+  .week-entry-title button,
+  .week-preview {
+    display: none;
+  }
+  .week-entry > .plan-day-body {
+    display: block;
+    margin: 9px 0 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #4d4152;
+    line-height: 1.55;
+  }
+  .week-entry :where(.plan-activity) > strong {
+    display: block;
     font-size: var(--text-small);
   }
-  .week-focus-jump svg {
-    transform: rotate(90deg);
+  .week-entry .activity-separator {
+    display: none;
+  }
+  .week-entry :where(.plan-day-body) p {
+    margin-bottom: 9px;
+  }
+  .week-entry .objectives,
+  .week-entry .bring-note {
+    padding: 6px 8px;
+  }
+  .week-entry .objectives {
+    margin: 8px 0 0;
+  }
+  .week-entry a {
+    scroll-margin-top: 4.5rem;
+  }
+  .week-unlisted {
+    padding: 2px 4px;
+  }
+  .week-focus {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: 24px;
+  }
+  .week-focus-heading {
+    flex: 0 0 100%;
+  }
+  .week-class-focus {
+    min-width: 0;
+    flex: 1 1 15rem;
   }
 }
 @media (max-width: 700px) {
