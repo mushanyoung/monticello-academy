@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { addDays, campusDate } from "../../src/shared/dates";
+import { addDays } from "../../src/shared/dates";
 import { fixtureMail } from "../fixtures/mail";
 import { fixturePlan } from "../fixtures/plan";
 
@@ -8,6 +8,7 @@ test("opens the notebook and preserves a usable mobile viewport", async ({
   page,
   request,
 }) => {
+  await page.clock.setFixedTime(new Date("2040-11-13T18:00:00Z"));
   await page.goto("/");
   await expect(page.locator(".brand-name")).toHaveText("monticello");
   await expect(page.locator(".brand [role=img]")).toHaveCount(3);
@@ -32,7 +33,8 @@ test("checks today and tomorrow, opens the monthly plan and reads its source", a
   page,
   request,
 }, testInfo) => {
-  const today = campusDate();
+  const today = "2040-11-13";
+  await page.clock.setFixedTime(new Date(`${today}T18:00:00Z`));
   const tomorrow = addDays(today, 1);
   const key = `family-${crypto.randomUUID()}`;
   const { id } = await (

@@ -1,4 +1,4 @@
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { useI18n } from "./i18n";
 import { LanguageProvider, LanguageSwitch } from "./language";
@@ -12,7 +12,7 @@ import "@fontsource/caveat/latin-500.css";
 import "./styles.css";
 import "./weekly-plans.css";
 import { CLASSES, isClassId } from "../shared/classes";
-import { campusDate } from "../shared/dates";
+import { campusDate, isWeekday } from "../shared/dates";
 import { href, useApi } from "./api";
 import { Icon, RoomDoodle } from "./art";
 import { LoadState } from "./components";
@@ -28,6 +28,17 @@ function MailCount() {
 
 function App() {
   const { t, displayDate, className } = useI18n();
+  const [today, setToday] = useState(campusDate);
+  useEffect(() => {
+    const update = () => setToday(campusDate());
+    const timer = setInterval(update, 30000);
+    document.addEventListener("visibilitychange", update);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", update);
+    };
+  }, []);
+  const weekday = isWeekday(today);
   useEffect(() => {
     document.title = `Monticello · ${t("Monroe campus")}`;
   }, [t]);
@@ -37,7 +48,11 @@ function App() {
   const c = params.get("class") || "all";
   const selected = isClassId(c) ? c : "all";
   const links = [
-    { view: "today", name: t("The day ahead"), icon: "sun" },
+    {
+      view: "today",
+      name: t(weekday ? "The day ahead" : "Daily plans"),
+      icon: "sun",
+    },
     { view: "mail", name: t("Mailbox"), icon: "mail" },
     { view: "plans", name: t("Lesson plans"), icon: "calendar" },
   ] as const;
@@ -99,25 +114,28 @@ function App() {
             {t("Monticello Academy")} <span className="topbar-divider">/</span>{" "}
             <strong>{t("Monroe campus")}</strong>
           </span>
-          <span className="topbar-date">
-            <span className="dot" />
-            {displayDate(campusDate(), {
-              weekday: "short",
-              month: "short",
-              day: "numeric",
-            })}
-          </span>
+          {weekday && (
+            <span className="topbar-date">
+              <span className="dot" />
+              {displayDate(today, {
+                weekday: "short",
+                month: "short",
+                day: "numeric",
+              })}
+            </span>
+          )}
         </header>
         <main id="main" aria-busy={pending}>
           <Suspense fallback={<LoadState error={null} />}>
             {view === "mail" ? (
               <Mailbox selected={selected} params={params} />
             ) : view === "plans" ? (
-              <Plans />
+              <Plans today={today} />
             ) : (
               <Dashboard
                 selected={selected}
                 tomorrow={params.get("day") === "tomorrow"}
+                today={today}
               />
             )}
           </Suspense>
@@ -137,7 +155,9 @@ function App() {
             aria-current={view === link.view ? "page" : undefined}
           >
             <Icon name={link.icon} />
-            <span>{link.view === "today" ? t("Today") : link.name}</span>
+            <span>
+              {link.view === "today" && weekday ? t("Today") : link.name}
+            </span>
           </a>
         ))}
       </nav>

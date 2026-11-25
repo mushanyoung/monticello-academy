@@ -1,5 +1,10 @@
 import { CLASSES, type ClassId } from "../shared/classes";
-import { addDays, startOfWeek } from "../shared/dates";
+import {
+  addDays,
+  endOfSchoolWeek,
+  SCHOOL_DAYS_PER_WEEK,
+  startOfWeek,
+} from "../shared/dates";
 import type { LessonDay, StoredPlan } from "../shared/plans";
 import { href, useApi } from "./api";
 import { Icon } from "./art";
@@ -83,59 +88,58 @@ function WeekAgenda({
         </a>
       </div>
       <ol className="week-days">
-        {Array.from({ length: 7 }, (_, index) => addDays(week, index)).map(
-          (date) => {
-            const entries = groups.flatMap(({ id, plans }) => {
-              const primary = plans
-                .flatMap((p) => p.days)
-                .find((d) => d.date === date);
-              const alternatives = plans
-                .flatMap((p) => p.alternateDays || [])
-                .filter((d) => d.date === date);
-              const day = primary ?? alternatives.shift();
-              return day
-                ? [
-                    <WeekEntry
-                      key={id}
-                      day={day}
-                      alternatives={alternatives}
-                      classroom={all ? id : undefined}
-                      today={today === date}
-                    />,
-                  ]
-                : [];
-            });
-            return (
-              <li
-                key={date}
-                className="week-day"
-                aria-current={today === date ? "date" : undefined}
-              >
-                <div className="week-date">
-                  <time dateTime={date}>
-                    <span className="sr-only">
-                      {displayDate(date, { dateStyle: "full" })}
-                    </span>
-                    <span aria-hidden="true">
-                      {displayDate(date, { weekday: "short" })}
-                    </span>
-                    <strong aria-hidden="true">{Number(date.slice(-2))}</strong>
-                  </time>
-                  {today === date && (
-                    <span className="week-today">{t("Today")}</span>
-                  )}
-                </div>
-                <div className="week-entries">
-                  {entries.length ? (
-                    entries
-                  ) : (
-                    <p className="week-unlisted">{t("No entry listed")}</p>
-                  )}
-                </div>
-              </li>
-            );
-          },
-        )}
+        {Array.from({ length: SCHOOL_DAYS_PER_WEEK }, (_, index) => {
+          const date = addDays(week, index);
+          const entries = groups.flatMap(({ id, plans }) => {
+            const primary = plans
+              .flatMap((p) => p.days)
+              .find((d) => d.date === date);
+            const alternatives = plans
+              .flatMap((p) => p.alternateDays || [])
+              .filter((d) => d.date === date);
+            const day = primary ?? alternatives.shift();
+            return day
+              ? [
+                  <WeekEntry
+                    key={id}
+                    day={day}
+                    alternatives={alternatives}
+                    classroom={all ? id : undefined}
+                    today={today === date}
+                  />,
+                ]
+              : [];
+          });
+          return (
+            <li
+              key={date}
+              className="week-day"
+              aria-current={today === date ? "date" : undefined}
+            >
+              <div className="week-date">
+                <time dateTime={date}>
+                  <span className="sr-only">
+                    {displayDate(date, { dateStyle: "full" })}
+                  </span>
+                  <span aria-hidden="true">
+                    {displayDate(date, { weekday: "short" })}
+                  </span>
+                  <strong aria-hidden="true">{Number(date.slice(-2))}</strong>
+                </time>
+                {today === date && (
+                  <span className="week-today">{t("Today")}</span>
+                )}
+              </div>
+              <div className="week-entries">
+                {entries.length ? (
+                  entries
+                ) : (
+                  <p className="week-unlisted">{t("No entry listed")}</p>
+                )}
+              </div>
+            </li>
+          );
+        })}
       </ol>
     </section>
   );
@@ -288,7 +292,7 @@ export function WeeklyPlans({
     <section className="week-planner" aria-labelledby="week-range">
       <header className="week-heading">
         <h2 id="week-range" aria-live="polite">
-          {displayDateRange(week, addDays(week, 6))}
+          {displayDateRange(week, endOfSchoolWeek(week))}
         </h2>
         <div className="week-pager">
           {previous ? (

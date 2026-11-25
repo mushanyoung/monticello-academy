@@ -39,6 +39,7 @@ describe("campus dates", () => {
     }
     expect(
       weekdayRanges([
+        { startDate: "0000-01-01", endDate: "0000-01-02" },
         { startDate: "2028-01-01", endDate: "2028-01-02" },
         { startDate: "2028-01-02", endDate: "2028-01-08" },
         { startDate: "2027-12-31", endDate: "2028-01-02" },

@@ -147,7 +147,7 @@ test("translates current plans and daily details without dropping conflicting so
     days: [],
     monthlyReminders: ["Label all belongings"],
   };
-  const date = `${plan.month}-13`;
+  const date = `${plan.month}-15`; // A weekday in both fixture years.
   const day = {
     date,
     title: "Exploring our neighborhood",

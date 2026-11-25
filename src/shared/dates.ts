@@ -47,9 +47,10 @@ export function weekdayRanges<T extends { startDate: string; endDate: string }>(
 ) {
   return ranges.flatMap((range) => {
     const startDate = weekdayOnOrAfter(range.startDate);
+    if (startDate > range.endDate) return [];
     const endDate = isWeekday(range.endDate)
       ? range.endDate
       : endOfSchoolWeek(startOfWeek(range.endDate));
-    return startDate <= endDate ? [{ ...range, startDate, endDate }] : [];
+    return [{ ...range, startDate, endDate }];
   });
 }

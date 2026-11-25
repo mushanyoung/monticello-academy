@@ -1,6 +1,14 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { CLASSES, isClassId } from "../shared/classes";
-import { addDays, campusDate, startOfWeek, validDate } from "../shared/dates";
+import {
+  addDays,
+  endOfSchoolWeek,
+  isWeekday,
+  startOfWeek,
+  validDate,
+  weekdayOnOrAfter,
+  weekdayRanges,
+} from "../shared/dates";
 import type { StoredPlan } from "../shared/plans";
 import { href, useApi } from "./api";
 import { Icon, RoomDoodle } from "./art";
@@ -28,13 +36,16 @@ function PlanNotes({
 }
 
 function defaultWeek(month: string, today: string) {
-  return startOfWeek(today.startsWith(month) ? today : `${month}-01`);
+  const firstWeekday = weekdayOnOrAfter(`${month}-01`);
+  return startOfWeek(
+    today.startsWith(month) && today >= firstWeekday ? today : firstWeekday,
+  );
 }
 
 function monthForWeek(week: string, months: string[], preferred?: string) {
   if (!validDate(week)) return undefined;
   const first = week.slice(0, 7);
-  const last = addDays(week, 6).slice(0, 7);
+  const last = endOfSchoolWeek(week).slice(0, 7);
   if (
     preferred &&
     (preferred === first || preferred === last) &&
@@ -80,14 +91,13 @@ function planSelection(
   };
 }
 
-export function Plans() {
+export function Plans({ today }: { today: string }) {
   const { t, displayDate } = useI18n();
   const { search, requestedSearch, follow, navigate, replaceSearch } =
     useNavigation();
   const [lastWeek, setLastWeek] = useState<string>();
   const available = useApi<{ months: string[] }>("/api/plan-months");
   const months = available.data?.months;
-  const today = campusDate();
   const visible = planSelection(search, months, today);
   const target =
     search === requestedSearch
@@ -204,6 +214,7 @@ export function Plans() {
               key={`${selected}:${selectedMonth}`}
               selected={selected}
               selectedMonth={selectedMonth}
+              today={today}
             />
           )}
         </>
@@ -223,11 +234,13 @@ export function Plans() {
 function MonthlyPlans({
   selected,
   selectedMonth,
+  today,
 }: {
   selected: string;
   selectedMonth: string;
+  today: string;
 }) {
-  const { t, displayDate } = useI18n();
+  const { t, displayDate, displayDateRange } = useI18n();
   const plans = useApi<{ items: StoredPlan[] }>(
     `/api/plans?${new URLSearchParams({ class: selected, month: selectedMonth })}`,
   );
@@ -238,6 +251,12 @@ function MonthlyPlans({
           <div className="plan-list">
             {plans.data.items.map((plan) => {
               const room = CLASSES.find((c) => c.id === plan.classId);
+              const weeks = new Map(
+                weekdayRanges(plan.weeks || []).map((week) => [
+                  JSON.stringify(week),
+                  week,
+                ]),
+              );
               return (
                 <article className="plan" key={plan.id}>
                   <div className="plan-heading">
@@ -283,14 +302,13 @@ function MonthlyPlans({
                     </PlanNotes>
                   )}
                   <div className="plan-days">
-                    {plan.weeks?.map((week) => (
-                      <details className="plan-day" key={JSON.stringify(week)}>
+                    {[...weeks].map(([key, week]) => (
+                      <details className="plan-day" key={key}>
                         <summary>
                           <span>
                             <strong>{week.theme}</strong>
                             <span>
-                              {displayDate(week.startDate)} –{" "}
-                              {displayDate(week.endDate)}
+                              {displayDateRange(week.startDate, week.endDate)}
                             </span>
                           </span>
                           <Icon name="chevron" size={18} />
@@ -305,13 +323,14 @@ function MonthlyPlans({
                         </div>
                       </details>
                     ))}
-                    {[...plan.days]
+                    {plan.days
+                      .filter((day) => isWeekday(day.date))
                       .sort((a, b) => a.date.localeCompare(b.date))
                       .map((day) => (
                         <details
                           className="plan-day"
                           key={day.date}
-                          open={day.date === campusDate()}
+                          open={day.date === today}
                         >
                           <summary>
                             <span className="day-date">

@@ -6,6 +6,7 @@ test("switches every view to Chinese, remembers the client choice and keeps a us
   page,
   request,
 }) => {
+  await page.clock.setFixedTime(new Date("2040-09-10T18:00:00Z"));
   const headers = { Authorization: "Bearer local-e2e-import-token" };
   const { id } = await (
     await request.post("/api/import", {

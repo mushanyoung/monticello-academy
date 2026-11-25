@@ -45,7 +45,7 @@ async function seedWeek(request: APIRequestContext) {
   };
   const focus = {
     startDate: monday,
-    endDate: "2044-01-01",
+    endDate: "2044-01-03",
     theme: "Around the neighborhood",
     focus: [{ area: "Language", items: ["Letter Rr"] }],
   };
@@ -54,7 +54,11 @@ async function seedWeek(request: APIRequestContext) {
     sources: [source],
     days: [day, { ...day, date: "2043-12-27", title: "Before the week" }],
     alternateDays: [closure],
-    weeks: [focus],
+    weeks: [
+      focus,
+      { ...focus, endDate: "2044-01-02" },
+      { ...focus, startDate: "2044-01-02", theme: "Weekend workshop" },
+    ],
     monthlyReminders: ["Label all belongings"],
     sourceNotes: [
       {
@@ -70,13 +74,18 @@ async function seedWeek(request: APIRequestContext) {
     days: [
       { ...closure, date: "2044-01-01" },
       { ...day, date: "2044-01-02", title: "Saturday studio" },
+      { ...closure, date: "2044-01-03", title: "Sunday closure" },
       { ...day, date: "2044-01-04", title: "Following Monday" },
     ],
-    alternateDays: [],
+    alternateDays: [
+      { ...day, date: "2044-01-02", title: "Weekend alternative" },
+    ],
   };
   for (const plan of [
     base,
     january,
+    fixturePlan(id, "2043-07-31"),
+    fixturePlan(id, "2043-08-03"),
     {
       ...base,
       classId: "twos",
@@ -114,7 +123,7 @@ async function seedWeek(request: APIRequestContext) {
   return pdf.id as string;
 }
 
-test("reads a bilingual week across years, with weekend lessons, source differences and classroom navigation", async ({
+test("reads five school days across years in both languages and keeps weekday source differences", async ({
   request,
   page,
   isMobile,
@@ -150,12 +159,17 @@ test("reads a bilingual week across years, with weekend lessons, source differen
       }),
     ).toHaveAttribute("aria-current", "page");
     await expect(page).toHaveURL(/week=2043-12-28/);
-    await expect(agenda.locator("time")).toHaveCount(7);
+    await expect(agenda.locator("time")).toHaveCount(5);
     expect(
       await agenda
         .locator("time")
         .evaluateAll((nodes) => nodes.map((n) => n.getAttribute("datetime"))),
-    ).toEqual(Array.from({ length: 7 }, (_, i) => addDays(monday, i)));
+    ).toEqual(Array.from({ length: 5 }, (_, i) => addDays(monday, i)));
+    const range = chinese
+      ? "2043年12月28日至2044年1月1日"
+      : /Dec 28, 2043\s*–\s*Jan 1, 2044/;
+    await expect(page.locator("#week-range")).toHaveText(range);
+    await expect(focus.locator(".week-theme small")).toHaveText(range);
     await expect(agenda.locator('[aria-current="date"] time')).toHaveAttribute(
       "datetime",
       "2043-12-31",
@@ -173,7 +187,9 @@ test("reads a bilingual week across years, with weekend lessons, source differen
     await expect(row("2044-01-01").locator(".week-closure")).toHaveText(
       chinese ? "学校放假" : "No school",
     );
-    await expect(row("2044-01-02")).toContainText("Saturday studio");
+    await expect(row("2044-01-02")).toHaveCount(0);
+    await expect(row("2044-01-03")).toHaveCount(0);
+    await expect(agenda).not.toContainText("Weekend alternative");
     await expect(agenda).not.toContainText("Following Monday");
     await expect(agenda).not.toContainText("Before the week");
     const record = row(monday).locator(".week-entry");
@@ -238,7 +254,7 @@ test("reads a bilingual week across years, with weekend lessons, source differen
   await expect(agenda).toContainText("Music circle");
   await page.getByRole("link", { name: "下一周", exact: true }).click();
   await expect(page.getByLabel("月份", { exact: true })).toHaveValue("2044-01");
-  await expect(agenda.locator(".week-unlisted")).toHaveCount(7);
+  await expect(agenda.locator(".week-unlisted")).toHaveCount(5);
   await expect(focus).toContainText("Sound and rhythm");
   await page.goBack();
   await expect(agenda).toContainText("Music circle");
@@ -275,9 +291,40 @@ test("reads a bilingual week across years, with weekend lessons, source differen
     "/?view=plans&class=sunshine&month=2044-01&week=2044-01-02#week-focus",
   );
   await expect(page).toHaveURL(/month=2044-01&week=2043-12-28#week-focus$/);
-  await expect(agenda).toContainText("Saturday studio");
+  await expect(agenda.locator("time").last()).toHaveAttribute(
+    "datetime",
+    "2044-01-01",
+  );
   await page.getByLabel("月份", { exact: true }).selectOption("2043-12");
   await expect(page).toHaveURL(/month=2043-12&week=2043-12-28/);
   await page.goto("/?view=plans&class=sunshine&month=2043-12&week=2044-02-30");
   await expect(page).toHaveURL(/week=2043-12-28/);
+  await page.goto("/?view=plans&class=sunshine&month=2044-01");
+  for (const language of ["中文", "English"]) {
+    await page.getByRole("button", { name: language, exact: true }).click();
+    const list = page.locator(".plan-days");
+    await expect(list.locator(".plan-day")).toHaveCount(3);
+    await expect(list.locator(".day-date strong")).toHaveText(["01", "04"]);
+    await expect(list).not.toContainText(
+      /Saturday studio|Sunday closure|Weekend alternative|Weekend workshop/,
+    );
+    await expect(list.locator("summary").first()).toContainText(
+      language === "中文"
+        ? "2043年12月28日至2044年1月1日"
+        : /Dec 28, 2043\s*–\s*Jan 1, 2044/,
+    );
+  }
+  await page.getByLabel("Month", { exact: true }).selectOption("2043-08");
+  await page.getByRole("link", { name: "Week view", exact: true }).click();
+  await expect(page).toHaveURL(/month=2043-08&week=2043-08-03$/);
+  await expect(agenda.locator("time").first()).toHaveAttribute(
+    "datetime",
+    "2043-08-03",
+  );
+  await page.getByRole("link", { name: "Previous week" }).click();
+  await expect(page).toHaveURL(/month=2043-07&week=2043-07-27$/);
+  await expect(agenda.locator("time").last()).toHaveAttribute(
+    "datetime",
+    "2043-07-31",
+  );
 });

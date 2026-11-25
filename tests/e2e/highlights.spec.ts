@@ -24,6 +24,7 @@ test("finds the next recorded date across weekends and years in both languages",
   day.title = "Exploring our neighborhood";
   const plans: LessonPlan[] = [
     fixturePlan(id, "2095-12-30"),
+    { ...fixturePlan(id, "2095-12-31"), classId: "guppy" },
     monday,
     {
       ...fixturePlan(id, "2096-01-03"),
@@ -42,7 +43,7 @@ test("finds the next recorded date across weekends and years in both languages",
     {
       ...monday,
       classId: "twos",
-      days: [],
+      days: [{ ...day, date: "2096-01-01", title: "Archived Sunday entry" }],
       monthlyReminders: ["Label belongings"],
     },
   ];
@@ -86,20 +87,9 @@ test("finds the next recorded date across weekends and years in both languages",
   await page.clock.install({ time: new Date("2095-12-31T07:30:00Z") });
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  for (const [
-    language,
-    tomorrow,
-    next,
-    guppy,
-    twos,
-    all,
-    empty,
-    noSchool,
-    title,
-  ] of [
+  for (const [language, next, guppy, twos, all, empty, noSchool, title] of [
     [
       "English",
-      "Tomorrow",
       "Next up",
       "Guppy Room",
       "Twos Town",
@@ -110,7 +100,6 @@ test("finds the next recorded date across weekends and years in both languages",
     ],
     [
       "中文",
-      "明天",
       "下次安排",
       "小鱼班",
       "两岁班",
@@ -120,13 +109,14 @@ test("finds the next recorded date across weekends and years in both languages",
       "探索我们的社区",
     ],
   ] as const) {
+    await page.clock.setSystemTime(new Date("2095-12-31T07:30:00Z"));
     await page.goto("/?class=sunshine");
     await page.getByRole("button", { name: language, exact: true }).click();
     await expect(page.locator(".date-line time")).toHaveAttribute(
       "datetime",
       "2095-12-30",
     );
-    await page.getByRole("link", { name: tomorrow, exact: true }).click();
+    await page.getByRole("link", { name: next, exact: true }).click();
     await expect(page.locator(".date-line time")).toHaveAttribute(
       "datetime",
       "2096-01-02",
@@ -173,6 +163,43 @@ test("finds the next recorded date across weekends and years in both languages",
     await expect(page).toHaveURL(
       (url) => url.searchParams.get("day") === "tomorrow",
     );
+    await page.goto("/?class=all");
+    await expect(page.locator(".date-line time")).toHaveAttribute(
+      "datetime",
+      "2095-12-30",
+    );
+    await page.clock.fastForward(31 * 60 * 1000);
+    const primary = page.locator(".day-switch").getByRole("link", {
+      name: language === "中文" ? "星期一" : "Monday",
+      exact: true,
+    });
+    for (const weekendDay of ["2095-12-31", "2096-01-01"]) {
+      await expect(primary).toHaveAttribute("aria-current", "date");
+      await expect(page.locator(".topbar-date")).toHaveCount(0);
+      await expect(page.locator(".date-line time")).toHaveAttribute(
+        "datetime",
+        "2096-01-02",
+      );
+      await expect(
+        page.getByRole("heading", { name: title, exact: true }),
+      ).toBeVisible();
+      await page.getByRole("link", { name: next, exact: true }).click();
+      await expect(page.locator(".date-line time")).toHaveAttribute(
+        "datetime",
+        "2096-01-03",
+      );
+      await expect(
+        page
+          .locator(".day-card")
+          .filter({
+            has: page.getByRole("heading", { name: guppy, exact: true }),
+          })
+          .getByText(noSchool, { exact: true }),
+      ).toBeVisible();
+      if (weekendDay === "2095-12-31")
+        await page.clock.setSystemTime(new Date("2096-01-01T18:00:00Z"));
+      await primary.click();
+    }
   }
   expect(errors).toEqual([]);
 });

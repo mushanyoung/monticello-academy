@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
 import { CLASSES } from "../shared/classes";
-import { addDays, campusDate } from "../shared/dates";
+import { addDays, isWeekday, weekdayOnOrAfter } from "../shared/dates";
 import type { MailPage } from "../shared/models";
 import type { ClassHighlight, Highlights } from "../shared/plans";
 import { href, useApi } from "./api";
@@ -10,7 +9,13 @@ import { useI18n } from "./i18n";
 import { DayDetails } from "./lesson-details";
 import { TranslationNotice } from "./TranslationNotice";
 
-function DayCard({ highlight }: { highlight: ClassHighlight }) {
+function DayCard({
+  highlight,
+  isToday,
+}: {
+  highlight: ClassHighlight;
+  isToday: boolean;
+}) {
   const { t, className } = useI18n();
   const room = CLASSES.find((c) => c.id === highlight.classId);
   if (!room) return null;
@@ -28,7 +33,9 @@ function DayCard({ highlight }: { highlight: ClassHighlight }) {
         <div className="day-content">
           <TranslationNotice status={highlight.translationStatus} />
           <span className="small-label">
-            {day.noSchool ? t("NO SCHOOL") : t("TODAY'S LITTLE ADVENTURE")}
+            {day.noSchool
+              ? t("NO SCHOOL")
+              : t(isToday ? "TODAY'S LITTLE ADVENTURE" : "PLANNED ACTIVITIES")}
           </span>
           <h4>{day.title}</h4>
           <p className="theme">{highlight.theme}</p>
@@ -159,51 +166,50 @@ function DayCard({ highlight }: { highlight: ClassHighlight }) {
 export function Dashboard({
   selected,
   tomorrow,
+  today,
 }: {
   selected: string;
   tomorrow: boolean;
+  today: string;
 }) {
   const { t, displayDate } = useI18n();
-  const [today, setToday] = useState(campusDate());
-  useEffect(() => {
-    const update = () => setToday(campusDate());
-    const timer = setInterval(update, 30000);
-    document.addEventListener("visibilitychange", update);
-    return () => {
-      clearInterval(timer);
-      document.removeEventListener("visibilitychange", update);
-    };
-  }, []);
+  const schoolDate = weekdayOnOrAfter(today);
   const mailUrl = `/api/mail?${new URLSearchParams({ class: selected })}`;
   const daily = useApi<Highlights>(
     `/api/highlights?${new URLSearchParams({
-      [tomorrow ? "after" : "date"]: today,
+      [tomorrow ? "after" : "date"]: schoolDate,
       class: selected,
     })}`,
     mailUrl,
   );
-  const date = tomorrow ? daily.data?.date : today;
-  const skipsDays = Boolean(tomorrow && date && date !== addDays(today, 1));
+  const date = tomorrow ? daily.data?.date : schoolDate;
+  const calendarTomorrow = addDays(today, 1);
+  const skipsDays = Boolean(tomorrow && date && date !== calendarTomorrow);
+  const showNextUp =
+    schoolDate !== today || !isWeekday(calendarTomorrow) || skipsDays;
   const mail = useApi<MailPage>(mailUrl);
   return (
     <>
       <section className="daily-section" aria-labelledby="day-heading">
         <div className="section-heading">
           <h1 id="day-heading">
-            {t("The day ahead")} <span className="sparkle">✧</span>
+            {t(schoolDate === today ? "The day ahead" : "Daily plans")}{" "}
+            <span className="sparkle">✧</span>
           </h1>
           <div className="day-switch">
             <a
               href={href({ class: selected })}
               aria-current={!tomorrow ? "date" : undefined}
             >
-              {t("Today")}
+              {schoolDate === today
+                ? t("Today")
+                : displayDate(schoolDate, { weekday: "long" })}
             </a>
             <a
               href={href({ class: selected, day: "tomorrow" })}
               aria-current={tomorrow ? "date" : undefined}
             >
-              {t(skipsDays ? "Next up" : "Tomorrow")}
+              {t(showNextUp ? "Next up" : "Tomorrow")}
             </a>
           </div>
         </div>
@@ -245,7 +251,11 @@ export function Dashboard({
           ) : (
             <div className="day-grid">
               {daily.data.classes.map((c) => (
-                <DayCard key={c.classId} highlight={c} />
+                <DayCard
+                  key={c.classId}
+                  highlight={c}
+                  isToday={date === today}
+                />
               ))}
             </div>
           )
