@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useState } from "react";
-import { CLASSES } from "../shared/classes";
-import { campusDate, startOfWeek, validDate } from "../shared/dates";
+import { CLASSES, isClassId } from "../shared/classes";
+import { addDays, campusDate, startOfWeek, validDate } from "../shared/dates";
 import type { StoredPlan } from "../shared/plans";
 import { href, useApi } from "./api";
 import { Icon, RoomDoodle } from "./art";
@@ -10,7 +10,7 @@ import { PlanDayBody } from "./lesson-details";
 import { useNavigation } from "./navigation";
 import { PlanSources, SourceNoteItems } from "./plan-sources";
 import { TranslationNotice } from "./TranslationNotice";
-import { monthForWeek, WeeklyPlans } from "./WeeklyPlans";
+import { WeeklyPlans } from "./WeeklyPlans";
 
 function PlanNotes({
   title,
@@ -31,49 +31,78 @@ function defaultWeek(month: string, today: string) {
   return startOfWeek(today.startsWith(month) ? today : `${month}-01`);
 }
 
-export function Plans({
-  selected,
-  month,
-  week,
-}: {
-  selected: string;
-  month?: string;
-  week?: string;
-}) {
-  const { t, displayDate } = useI18n();
-  const { search, follow, navigate } = useNavigation();
-  const [lastWeek, setLastWeek] = useState<string>();
-  const available = useApi<{ months: string[] }>("/api/plan-months");
-  const months = available.data?.months;
-  const today = campusDate();
+function monthForWeek(week: string, months: string[], preferred?: string) {
+  if (!validDate(week)) return undefined;
+  const first = week.slice(0, 7);
+  const last = addDays(week, 6).slice(0, 7);
+  if (
+    preferred &&
+    (preferred === first || preferred === last) &&
+    months.includes(preferred)
+  )
+    return preferred;
+  return [first, last].find((month) => months.includes(month));
+}
+
+function planSelection(
+  search: string,
+  months: string[] | undefined,
+  today: string,
+) {
+  const params = new URLSearchParams(search);
+  const month = params.get("month") || undefined;
+  const week = params.get("week") ?? undefined;
+  const room = params.get("class") || "all";
+  const selected = isClassId(room) ? room : "all";
+  if (!months?.length) return { selected, month, week };
   const currentMonth = today.slice(0, 7);
   const requestedWeek = week && validDate(week) ? startOfWeek(week) : undefined;
-  const weekMonth =
-    requestedWeek && months
-      ? monthForWeek(requestedWeek, months, month)
-      : undefined;
+  const weekMonth = requestedWeek
+    ? monthForWeek(requestedWeek, months, month)
+    : undefined;
   const selectedMonth =
     weekMonth ||
-    (month && months?.includes(month)
+    (month && months.includes(month)
       ? month
-      : months?.includes(currentMonth)
+      : months.includes(currentMonth)
         ? currentMonth
-        : months?.[0]);
+        : months[0]);
   const selectedWeek =
     week !== undefined && selectedMonth
       ? weekMonth
         ? requestedWeek
         : defaultWeek(selectedMonth, today)
       : undefined;
+  return {
+    selected,
+    month: selectedMonth,
+    week: selectedWeek,
+  };
+}
+
+export function Plans() {
+  const { t, displayDate } = useI18n();
+  const { search, requestedSearch, follow, navigate, replaceSearch } =
+    useNavigation();
+  const [lastWeek, setLastWeek] = useState<string>();
+  const available = useApi<{ months: string[] }>("/api/plan-months");
+  const months = available.data?.months;
+  const today = campusDate();
+  const visible = planSelection(search, months, today);
+  const target =
+    search === requestedSearch
+      ? visible
+      : planSelection(requestedSearch, months, today);
+  const { selected, month: selectedMonth, week: selectedWeek } = visible;
   useEffect(() => {
+    const params = new URLSearchParams(search);
     if (
       selectedMonth &&
-      (month !== selectedMonth || week !== selectedWeek) &&
+      (params.get("month") !== selectedMonth ||
+        (params.get("week") ?? undefined) !== selectedWeek) &&
       window.location.search === search
     )
-      window.history.replaceState(
-        window.history.state,
-        "",
+      replaceSearch(
         href({
           view: "plans",
           class: selected,
@@ -81,21 +110,25 @@ export function Plans({
           week: selectedWeek,
         }),
       );
-  }, [selectedMonth, month, selectedWeek, week, selected, search]);
+  }, [selectedMonth, selectedWeek, selected, search, replaceSearch]);
   const planLink = (month: string, week?: string) =>
-    href({ view: "plans", class: selected, month, week });
+    href({ view: "plans", class: target.selected, month, week });
+  function weekLink(date: string, preferred = target.month) {
+    const month = monthForWeek(date, months || [], preferred);
+    return month && planLink(month, date);
+  }
   return (
     <>
       <h1 className="sr-only">{t("Lesson plans")}</h1>
       <ClassFilters
         view="plans"
         selected={selected}
-        month={selectedMonth || month}
-        week={selectedWeek}
+        month={target.month}
+        week={target.week}
       />
       {!months ? (
         <LoadState error={available.error} retry={available.retry} />
-      ) : selectedMonth ? (
+      ) : months.length && selectedMonth && target.month ? (
         <>
           <div className="plan-toolbar">
             <div className="month-picker">
@@ -103,13 +136,13 @@ export function Plans({
               <select
                 id="month"
                 name="month"
-                value={selectedMonth}
+                value={target.month}
                 onChange={(event) => {
-                  const target = event.currentTarget.value;
+                  const month = event.currentTarget.value;
                   navigate(
                     planLink(
-                      target,
-                      selectedWeek ? defaultWeek(target, today) : undefined,
+                      month,
+                      target.week ? defaultWeek(month, today) : undefined,
                     ),
                   );
                 }}
@@ -129,9 +162,9 @@ export function Plans({
               aria-label={t("Lesson plan view")}
             >
               <a
-                href={planLink(selectedMonth)}
+                href={planLink(target.month)}
                 onClick={(event) => {
-                  if (selectedWeek) setLastWeek(selectedWeek);
+                  if (target.week) setLastWeek(target.week);
                   follow(event);
                 }}
                 aria-current={!selectedWeek ? "page" : undefined}
@@ -141,13 +174,13 @@ export function Plans({
               </a>
               <a
                 href={planLink(
-                  selectedMonth,
-                  selectedWeek ||
+                  target.month,
+                  target.week ||
                     (lastWeek &&
-                    monthForWeek(lastWeek, months, selectedMonth) ===
-                      selectedMonth
+                    monthForWeek(lastWeek, months, target.month) ===
+                      target.month
                       ? lastWeek
-                      : defaultWeek(selectedMonth, today)),
+                      : defaultWeek(target.month, today)),
                 )}
                 onClick={follow}
                 aria-current={selectedWeek ? "page" : undefined}
@@ -160,10 +193,11 @@ export function Plans({
           {selectedWeek ? (
             <WeeklyPlans
               selected={selected}
-              month={selectedMonth}
               week={selectedWeek}
-              months={months}
               today={today}
+              previous={weekLink(addDays(target.week || selectedWeek, -7))}
+              next={weekLink(addDays(target.week || selectedWeek, 7))}
+              current={weekLink(startOfWeek(today), today.slice(0, 7))}
             />
           ) : (
             <MonthlyPlans

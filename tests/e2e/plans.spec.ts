@@ -77,11 +77,30 @@ test("chooses only archived months across classrooms and retains filters and sha
   await expect(
     page.getByRole("heading", { name: "Guppy February archive" }),
   ).toBeVisible();
-  await page.getByLabel("Month", { exact: true }).selectOption("2051-09");
-  await expect(page).toHaveURL(/class=guppy&month=2051-09/);
-  await filters
-    .getByRole("link", { name: "Sunshine Room", exact: true })
-    .click();
+  const september = Promise.withResolvers<void>();
+  await page.route(
+    "**/api/plans?*class=guppy&month=2051-09&*",
+    async (route) => {
+      await september.promise;
+      await route.continue();
+    },
+  );
+  try {
+    await page.getByLabel("Month", { exact: true }).selectOption("2051-09");
+    await expect(page).toHaveURL(/class=guppy&month=2051-09/);
+    const sunshine = filters.getByRole("link", {
+      name: "Sunshine Room",
+      exact: true,
+    });
+    await expect(sunshine).toHaveAttribute(
+      "href",
+      /class=sunshine&month=2051-09$/,
+    );
+    await sunshine.click();
+    await expect(page).toHaveURL(/class=sunshine&month=2051-09$/);
+  } finally {
+    september.resolve();
+  }
   await expect(
     page.getByRole("heading", { name: "This month is still taking shape." }),
   ).toBeVisible();
@@ -112,8 +131,11 @@ test("retries month loading and shows an honest empty archive in both languages"
     }
     return route.fulfill({ json: { months: [] } });
   });
-  await page.goto("/?view=plans");
+  await page.goto("/?view=plans&class=twos&month=2051-09&week=2051-09-04");
   await expect(page.getByRole("alert")).toBeVisible();
+  await expect(
+    page.locator('.class-filters a[href*="class=sunshine"]'),
+  ).toHaveAttribute("href", /month=2051-09&week=2051-09-04$/);
   await page.getByRole("button", { name: "Try again" }).click();
   await expect(
     page.getByRole("heading", { name: "No lesson plans have been added yet." }),

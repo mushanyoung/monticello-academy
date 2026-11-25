@@ -117,6 +117,7 @@ async function seedWeek(request: APIRequestContext) {
 test("reads a bilingual week across years, with weekend lessons, source differences and classroom navigation", async ({
   request,
   page,
+  isMobile,
 }) => {
   test.setTimeout(90000);
   const pdf = await seedWeek(request);
@@ -190,6 +191,18 @@ test("reads a bilingual week across years, with weekend lessons, source differen
     );
     await record.locator("summary").press("Enter");
     await expect(focus.locator(".week-theme")).toHaveCount(1);
+    if (isMobile) {
+      const jump = agenda.getByRole("link", {
+        name: chinese ? "本周学习重点" : "This week's focus",
+      });
+      if (chinese) await jump.press("Enter");
+      else await jump.tap();
+      await expect(focus).toBeFocused();
+      await expect(focus.getByRole("heading").first()).toBeInViewport();
+      await expect(page).toHaveURL(/week=2043-12-28#week-focus$/);
+      await page.goBack();
+      await expect(page).toHaveURL(/week=2043-12-28$/);
+    }
     await focus.locator(".week-theme summary").click();
     await expect(focus.locator("dd")).toHaveText(
       chinese ? "字母 Rr" : "Letter Rr",
@@ -232,10 +245,23 @@ test("reads a bilingual week across years, with weekend lessons, source differen
   await page.goForward();
   await page.reload();
   await expect(focus).toContainText("Sound and rhythm");
-  await page.getByRole("link", { name: "下一周", exact: true }).click();
-  await page.getByRole("link", { name: "月视图", exact: true }).click();
-  await page.getByRole("link", { name: "周视图", exact: true }).click();
-  await expect(page).toHaveURL(/week=2044-01-11/);
+  const weekRead = "**/api/plans?*week=2044-01-11&*";
+  const gate = Promise.withResolvers<void>();
+  await page.route(weekRead, async (route) => {
+    await gate.promise;
+    await route.continue();
+  });
+  try {
+    const reading = page.waitForRequest(weekRead);
+    await page.getByRole("link", { name: "下一周", exact: true }).click();
+    await reading;
+    await expect(focus).toContainText("Sound and rhythm");
+    await page.getByRole("link", { name: "月视图", exact: true }).click();
+    await page.getByRole("link", { name: "周视图", exact: true }).click();
+    await expect(page).toHaveURL(/week=2044-01-11/);
+  } finally {
+    gate.resolve();
+  }
   await filters.getByRole("link", { name: "小鱼班" }).click();
   await expect(
     page.getByRole("heading", { name: "这周还没有课程计划。" }),
@@ -245,8 +271,10 @@ test("reads a bilingual week across years, with weekend lessons, source differen
   await expect(page.getByLabel("月份", { exact: true })).toHaveValue("2043-12");
   await page.getByRole("link", { name: "月视图", exact: true }).click();
   await expect(page).not.toHaveURL(/week=/);
-  await page.goto("/?view=plans&class=sunshine&month=2044-01&week=2044-01-02");
-  await expect(page).toHaveURL(/month=2044-01&week=2043-12-28/);
+  await page.goto(
+    "/?view=plans&class=sunshine&month=2044-01&week=2044-01-02#week-focus",
+  );
+  await expect(page).toHaveURL(/month=2044-01&week=2043-12-28#week-focus$/);
   await expect(agenda).toContainText("Saturday studio");
   await page.getByLabel("月份", { exact: true }).selectOption("2043-12");
   await expect(page).toHaveURL(/month=2043-12&week=2043-12-28/);

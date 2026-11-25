@@ -113,11 +113,7 @@ function App() {
             {view === "mail" ? (
               <Mailbox selected={selected} params={params} />
             ) : view === "plans" ? (
-              <Plans
-                selected={selected}
-                month={params.get("month") || undefined}
-                week={params.get("week") ?? undefined}
-              />
+              <Plans />
             ) : (
               <Dashboard
                 selected={selected}

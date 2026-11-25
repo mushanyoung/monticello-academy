@@ -3,9 +3,10 @@ import {
   type MouseEvent,
   type ReactNode,
   use,
+  useCallback,
+  useDeferredValue,
   useEffect,
   useState,
-  useTransition,
 } from "react";
 import { type ApiRequests, ApiRequestsContext } from "./api";
 
@@ -18,29 +19,39 @@ function currentLocation() {
 
 const NavigationContext = createContext<{
   search: string;
+  requestedSearch: string;
   pending: boolean;
   navigate: (href: string) => void;
+  replaceSearch: (href: string) => void;
   follow: (event: MouseEvent<HTMLAnchorElement>) => void;
 } | null>(null);
 
 export function NavigationProvider({ children }: { children: ReactNode }) {
-  const [location, setLocation] = useState(currentLocation);
-  const [pending, startTransition] = useTransition();
+  const [requested, setRequested] = useState(currentLocation);
+  const location = useDeferredValue(requested);
   useEffect(() => {
     const restore = () => {
       const next = currentLocation();
-      startTransition(() => setLocation(next));
+      setRequested((previous) =>
+        previous.search === next.search ? previous : next,
+      );
     };
     window.addEventListener("popstate", restore);
     return () => window.removeEventListener("popstate", restore);
+  }, []);
+
+  const replaceSearch = useCallback((href: string) => {
+    const url = new URL(href, window.location.href);
+    url.hash = window.location.hash;
+    window.history.replaceState(window.history.state, "", url);
+    setRequested((previous) => ({ ...previous, search: url.search }));
   }, []);
 
   const navigate = (href: string) => {
     const url = new URL(href, window.location.href);
     if (url.href === window.location.href) return;
     window.history.pushState(null, "", url);
-    const next = currentLocation();
-    startTransition(() => setLocation(next));
+    setRequested(currentLocation());
   };
   const follow = (event: MouseEvent<HTMLAnchorElement>) => {
     const link = event.currentTarget;
@@ -68,7 +79,14 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
 
   return (
     <NavigationContext
-      value={{ search: location.search, pending, follow, navigate }}
+      value={{
+        search: location.search,
+        requestedSearch: requested.search,
+        pending: requested !== location,
+        follow,
+        navigate,
+        replaceSearch,
+      }}
     >
       <ApiRequestsContext value={location.requests}>
         {children}

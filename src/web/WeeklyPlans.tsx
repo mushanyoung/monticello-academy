@@ -1,5 +1,5 @@
 import { CLASSES, type ClassId } from "../shared/classes";
-import { addDays, startOfWeek, validDate } from "../shared/dates";
+import { addDays, startOfWeek } from "../shared/dates";
 import type { LessonDay, StoredPlan } from "../shared/plans";
 import { href, useApi } from "./api";
 import { Icon } from "./art";
@@ -9,23 +9,6 @@ import { PlanDayBody } from "./lesson-details";
 import { useNavigation } from "./navigation";
 import { PlanSources, SourceNoteItems } from "./plan-sources";
 import { TranslationNotice } from "./TranslationNotice";
-
-export function monthForWeek(
-  week: string,
-  months: string[],
-  preferred?: string,
-) {
-  if (!validDate(week)) return undefined;
-  const first = week.slice(0, 7);
-  const last = addDays(week, 6).slice(0, 7);
-  if (
-    preferred &&
-    (preferred === first || preferred === last) &&
-    months.includes(preferred)
-  )
-    return preferred;
-  return [first, last].find((month) => months.includes(month));
-}
 
 interface ClassroomWeek {
   id: ClassId;
@@ -277,32 +260,24 @@ function WeekFocus({ groups }: { groups: ClassroomWeek[] }) {
 
 export function WeeklyPlans({
   selected,
-  month,
   week,
-  months,
   today,
+  previous,
+  next,
+  current,
 }: {
   selected: string;
-  month: string;
   week: string;
-  months: string[];
   today: string;
+  previous?: string;
+  next?: string;
+  current?: string;
 }) {
   const { t, displayDateRange } = useI18n();
   const { follow } = useNavigation();
   const { data, error, retry } = useApi<{ items: StoredPlan[] }>(
     `/api/plans?${new URLSearchParams({ class: selected, week })}`,
   );
-  function weekHref(target: string, preferred = month) {
-    const targetMonth = monthForWeek(target, months, preferred);
-    return (
-      targetMonth &&
-      href({ view: "plans", class: selected, month: targetMonth, week: target })
-    );
-  }
-  const previous = weekHref(addDays(week, -7));
-  const next = weekHref(addDays(week, 7));
-  const current = weekHref(startOfWeek(today), today.slice(0, 7));
   const groups = CLASSES.map(({ id }) => ({
     id,
     plans: (data?.items || [])
