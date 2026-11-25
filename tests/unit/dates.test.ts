@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { addDays, campusDate, startOfWeek } from "../../src/shared/dates";
+import {
+  addDays,
+  campusDate,
+  endOfSchoolWeek,
+  isWeekday,
+  startOfWeek,
+  weekdayOnOrAfter,
+  weekdayRanges,
+} from "../../src/shared/dates";
 
 describe("campus dates", () => {
   it("uses Los Angeles date", () => {
@@ -16,5 +24,28 @@ describe("campus dates", () => {
     expect(startOfWeek("2028-03-01")).toBe("2028-02-28");
     expect(startOfWeek("2026-03-08")).toBe("2026-03-02");
     expect(startOfWeek("2026-11-01")).toBe("2026-10-26");
+  });
+  it("uses five campus weekdays across month, year and DST boundaries", () => {
+    expect(endOfSchoolWeek("2026-12-28")).toBe("2027-01-01");
+    for (const [date, next] of [
+      ["2027-12-31", "2027-12-31"],
+      ["2028-01-01", "2028-01-03"],
+      ["2028-01-02", "2028-01-03"],
+      ["2026-03-08", "2026-03-09"],
+      ["2026-11-01", "2026-11-02"],
+    ] as const) {
+      expect(isWeekday(date)).toBe(date === next);
+      expect(weekdayOnOrAfter(date)).toBe(next);
+    }
+    expect(
+      weekdayRanges([
+        { startDate: "2028-01-01", endDate: "2028-01-02" },
+        { startDate: "2028-01-02", endDate: "2028-01-08" },
+        { startDate: "2027-12-31", endDate: "2028-01-02" },
+      ]),
+    ).toEqual([
+      { startDate: "2028-01-03", endDate: "2028-01-07" },
+      { startDate: "2027-12-31", endDate: "2027-12-31" },
+    ]);
   });
 });

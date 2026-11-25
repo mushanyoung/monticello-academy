@@ -1,4 +1,5 @@
 export const CAMPUS_TIME_ZONE = "America/Los_Angeles";
+export const SCHOOL_DAYS_PER_WEEK = 5;
 export function validDate(value: string): boolean {
   return (
     /^\d{4}-\d{2}-\d{2}$/.test(value) &&
@@ -20,7 +21,35 @@ export function addDays(date: string, days: number): string {
   return value.toISOString().slice(0, 10);
 }
 
+function daysSinceMonday(date: string) {
+  return (new Date(`${date}T12:00:00Z`).getUTCDay() + 6) % 7;
+}
+
 export function startOfWeek(date: string): string {
-  const weekday = new Date(`${date}T12:00:00Z`).getUTCDay();
-  return addDays(date, -((weekday + 6) % 7));
+  return addDays(date, -daysSinceMonday(date));
+}
+
+export function endOfSchoolWeek(monday: string): string {
+  return addDays(monday, SCHOOL_DAYS_PER_WEEK - 1);
+}
+
+export function isWeekday(date: string): boolean {
+  return daysSinceMonday(date) < SCHOOL_DAYS_PER_WEEK;
+}
+
+export function weekdayOnOrAfter(date: string): string {
+  const offset = daysSinceMonday(date);
+  return offset < SCHOOL_DAYS_PER_WEEK ? date : addDays(date, 7 - offset);
+}
+
+export function weekdayRanges<T extends { startDate: string; endDate: string }>(
+  ranges: T[],
+) {
+  return ranges.flatMap((range) => {
+    const startDate = weekdayOnOrAfter(range.startDate);
+    const endDate = isWeekday(range.endDate)
+      ? range.endDate
+      : endOfSchoolWeek(startOfWeek(range.endDate));
+    return startDate <= endDate ? [{ ...range, startDate, endDate }] : [];
+  });
 }

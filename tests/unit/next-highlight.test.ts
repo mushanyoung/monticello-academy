@@ -57,9 +57,13 @@ describe("next recorded lesson date", () => {
     add(plan);
     expect(next("2044-12-30")).toBe("2045-01-02");
   });
-  it("uses an actual Saturday entry instead of assuming the next weekday", () => {
+  it("skips recorded Saturday and Sunday entries, even across a year boundary", () => {
     add(fixturePlan("a".repeat(64), "2044-12-31"));
-    expect(next("2044-12-30")).toBe("2044-12-31");
+    add(fixturePlan("a".repeat(64), "2045-01-01"));
+    expect(next("2044-12-30")).toBeNull();
+    add({ ...fixturePlan("a".repeat(64), "2045-01-02"), classId: "guppy" });
+    expect(next("2044-12-30")).toBe("2045-01-02");
+    expect(next("2044-12-30", "sunshine")).toBeNull();
   });
   it("does not invent a daily entry from monthly reminders or weekly goals", () => {
     const plan = fixturePlan("a".repeat(64), "2045-01-02");

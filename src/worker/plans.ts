@@ -1,9 +1,11 @@
 import { CLASSES } from "../shared/classes";
 import {
-  addDays,
   CAMPUS_TIME_ZONE,
   campusDate,
+  endOfSchoolWeek,
   startOfWeek,
+  weekdayOnOrAfter,
+  weekdayRanges,
 } from "../shared/dates";
 import {
   isLanguage,
@@ -107,7 +109,7 @@ export async function listPlans(db: D1Database, url: URL) {
       400,
       "Choose a month or a week starting on a valid Monday.",
     );
-  const weekEnd = week ? addDays(week, 6) : null;
+  const weekEnd = week ? endOfSchoolWeek(week) : null;
   if (month && !/^\d{4}-(0[1-9]|1[0-2])$/.test(month))
     throw new HttpError(400, "Invalid month.");
   const terms = ["p.status='published'"];
@@ -137,9 +139,10 @@ export async function listPlans(db: D1Database, url: URL) {
     for (const plan of items) {
       plan.days = plan.days.filter(inWeek);
       plan.alternateDays = plan.alternateDays?.filter(inWeek);
-      plan.weeks = plan.weeks?.filter(
-        (w) => w.startDate <= weekEnd && w.endDate >= week,
-      );
+      if (plan.weeks)
+        plan.weeks = weekdayRanges(
+          plan.weeks.filter((w) => w.startDate <= weekEnd && w.endDate >= week),
+        );
     }
   }
   return { items };
@@ -178,6 +181,7 @@ export const NEXT_HIGHLIGHT_DATE_SQL = `
  FROM lesson_plans p, json_each(p.document,'$.days') day
  WHERE p.status='published' AND p.month>=?
  AND json_extract(day.value,'$.date')>?
+ AND strftime('%w',json_extract(day.value,'$.date')) BETWEEN '1' AND '5'
  AND (? IS NULL OR p.class_id=?)`;
 
 export async function highlights(
@@ -191,7 +195,8 @@ export async function highlights(
   const after = url.searchParams.get("after");
   if (after !== null && url.searchParams.has("date"))
     throw new HttpError(400, "Choose either date or after.");
-  const requestedDate = after ?? url.searchParams.get("date") ?? today;
+  const requestedDate =
+    after ?? url.searchParams.get("date") ?? weekdayOnOrAfter(today);
   if (!validDate(requestedDate))
     throw new HttpError(400, "Invalid calendar date.");
   const date =

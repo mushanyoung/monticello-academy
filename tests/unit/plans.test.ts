@@ -39,7 +39,7 @@ describe("lesson plan rules", () => {
       "Rain boots",
     ]);
   });
-  it("reads a Monday–Sunday slice of both months with overlapping goals and alternative entries", async () => {
+  it("reads a Monday–Friday slice of both months and retains the complete monthly source", async () => {
     const sqlite = migratedDatabase();
     try {
       const db = d1Binding(sqlite);
@@ -55,6 +55,7 @@ describe("lesson plan rules", () => {
       const december = fixturePlan(source, "2043-12-28");
       december.days.push(...fixturePlan(source, "2043-12-27").days);
       const january = fixturePlan(source, "2044-01-03");
+      january.days.push(...fixturePlan(source, "2044-01-01").days);
       january.days.push(...fixturePlan(source, "2044-01-04").days);
       january.alternateDays = january.days.map((day) => ({
         ...day,
@@ -63,8 +64,14 @@ describe("lesson plan rules", () => {
       january.weeks = [
         {
           startDate: "2044-01-01",
-          endDate: "2044-01-05",
+          endDate: "2044-01-03",
           theme: "Winter",
+          focus: [],
+        },
+        {
+          startDate: "2044-01-02",
+          endDate: "2044-01-03",
+          theme: "Weekend only",
           focus: [],
         },
         {
@@ -80,15 +87,21 @@ describe("lesson plan rules", () => {
         listPlans(db, new URL(`https://example.com/?${search}`));
       const { items } = await query("week=2043-12-28");
       expect(items.map((p) => p.days.map((d) => d.date))).toEqual([
-        ["2044-01-03"],
+        ["2044-01-01"],
         ["2043-12-28"],
       ]);
       expect(items[0]?.alternateDays?.map((d) => d.date)).toEqual([
-        "2044-01-03",
+        "2044-01-01",
       ]);
       expect(items[0]?.weeks?.map((w) => w.theme)).toEqual(["Winter"]);
+      expect(items[0]?.weeks?.[0]?.endDate).toBe("2044-01-01");
       expect((await query("week=2043-12-28&class=twos")).items).toEqual([]);
-      expect((await query("month=2044-01")).items[0]?.days).toHaveLength(2);
+      const archived = (await query("month=2044-01")).items[0];
+      expect(archived?.days).toEqual(january.days);
+      expect(archived?.weeks).toEqual(january.weeks);
+      const may = fixturePlan(source, "2044-05-01"); // Sunday
+      await savePlan(db, may);
+      expect((await query("week=2044-04-25")).items).toEqual([]);
       for (const search of [
         "week=2043-12-29",
         "week=2044-02-30",
