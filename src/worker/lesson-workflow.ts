@@ -8,7 +8,12 @@ import {
   validateExtraction,
 } from "../shared/lesson-extraction";
 import { jobAlert, sendLessonAlerts } from "./lesson-alerts";
-import { failLesson, getLessonJob, lessonNotice } from "./lesson-jobs";
+import {
+  failLesson,
+  getLessonJob,
+  type LessonJob,
+  lessonNotice,
+} from "./lesson-jobs";
 import { publishExtraction } from "./lesson-publish";
 import { indexLessonText } from "./lesson-search";
 import {
@@ -16,7 +21,23 @@ import {
   lessonRequest,
   lessonRequestBody,
   readExtraction,
+  resumeLessonResponse,
+  waitForLessonResponse,
 } from "./openai";
+
+async function submitLessonPdf(env: Env, job: LessonJob) {
+  const object = await env.MAIL_BUCKET.get(job.content_key);
+  if (!object || object.size > 15 * 1024 * 1024)
+    throw new LessonError(
+      "pdf_unavailable",
+      "The PDF is missing or exceeds the 15 MiB parser limit.",
+    );
+  return lessonRequest(
+    env,
+    "/responses",
+    lessonRequestBody(job.filename, await object.arrayBuffer()),
+  );
+}
 
 export class LessonWorkflow extends WorkflowEntrypoint<
   Env,
@@ -50,35 +71,22 @@ export class LessonWorkflow extends WorkflowEntrypoint<
         retry,
         async () => {
           const current = await getLessonJob(this.env, job.id);
-          if (
-            current.attempt !== job.attempt ||
-            !["queued", "running"].includes(current.status)
-          )
-            return { id: "", status: "retired" };
-          if (current.response_id)
-            return { id: current.response_id, status: "in_progress" };
           const claim = await this.env.DB.prepare(
             "UPDATE lesson_jobs SET status='running',updated_at=? WHERE id=? AND attempt=? AND status IN ('queued','running')",
           )
             .bind(new Date().toISOString(), job.id, job.attempt)
             .run();
-          if (!claim.meta.changes) return { id: "", status: "retired" };
-          const object = await this.env.MAIL_BUCKET.get(job.content_key);
-          if (!object || object.size > 15 * 1024 * 1024)
-            throw new LessonError(
-              "pdf_unavailable",
-              "The PDF is missing or exceeds the 15 MiB parser limit.",
-            );
-          const response = await lessonRequest(
-            this.env,
-            "/responses",
-            lessonRequestBody(job.filename, await object.arrayBuffer()),
-          );
-          await this.env.DB.prepare(
-            "UPDATE lesson_jobs SET response_id=?,updated_at=? WHERE id=? AND attempt=?",
+          if (!claim.meta.changes) return null;
+          const saved = current.response_id
+            ? await resumeLessonResponse(this.env, current.response_id)
+            : null;
+          const response = saved ?? (await submitLessonPdf(this.env, job));
+          const recorded = await this.env.DB.prepare(
+            "UPDATE lesson_jobs SET response_id=?,updated_at=? WHERE id=? AND attempt=? AND status='running'",
           )
             .bind(response.id, new Date().toISOString(), job.id, job.attempt)
             .run();
+          if (!recorded.meta.changes) return null;
           if (response.status === "completed")
             await this.env.MAIL_BUCKET.put(
               resultKey,
@@ -88,41 +96,34 @@ export class LessonWorkflow extends WorkflowEntrypoint<
           return { id: response.id, status: response.status };
         },
       );
-      if (submitted.status === "retired") return;
-      let status = submitted.status;
-      for (
-        let poll = 0;
-        ["queued", "in_progress"].includes(status) && poll < 60;
-        poll++
-      ) {
-        await step.sleep(
-          `wait for Terra ${poll}`,
-          test ? "1 second" : "10 seconds",
-        );
-        status = await step.do(`poll Terra ${poll}`, retry, async () => {
-          const response = await lessonRequest(
-            this.env,
-            `/responses/${submitted.id}`,
+      if (!submitted) return;
+      await waitForLessonResponse(
+        submitted.status,
+        async (poll, delaySeconds) => {
+          await step.sleep(
+            `wait for Terra ${poll}`,
+            test ? 100 : delaySeconds * 1000,
           );
-          if (response.status === "completed")
-            await this.env.MAIL_BUCKET.put(
-              resultKey,
-              JSON.stringify(response),
-              { httpMetadata: { contentType: "application/json" } },
+          return step.do(`poll Terra ${poll}`, retry, async () => {
+            const response = await lessonRequest(
+              this.env,
+              `/responses/${submitted.id}`,
             );
-          await this.env.DB.prepare(
-            "UPDATE lesson_jobs SET updated_at=? WHERE id=? AND attempt=?",
-          )
-            .bind(new Date().toISOString(), job.id, job.attempt)
-            .run();
-          return response.status;
-        });
-      }
-      if (status !== "completed")
-        throw new LessonError(
-          "provider_incomplete",
-          `Lesson model did not finish successfully (${status}).`,
-        );
+            if (response.status === "completed")
+              await this.env.MAIL_BUCKET.put(
+                resultKey,
+                JSON.stringify(response),
+                { httpMetadata: { contentType: "application/json" } },
+              );
+            await this.env.DB.prepare(
+              "UPDATE lesson_jobs SET updated_at=? WHERE id=? AND attempt=? AND status='running'",
+            )
+              .bind(new Date().toISOString(), job.id, job.attempt)
+              .run();
+            return response.status;
+          });
+        },
+      );
       await step.do(
         "validate and publish all source entries",
         retry,

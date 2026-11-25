@@ -7,6 +7,8 @@ type Job = {
   attachment_id: string;
   status: string;
   attempt: number;
+  error_code: string | null;
+  response_id: string | null;
   error_message: string | null;
   result_key: string | null;
 };
@@ -291,6 +293,45 @@ test("protects operations and raw model results with admin authentication", asyn
       })
     ).status(),
   ).toBe(422);
+});
+
+test("publishes the original background response when it finishes after a polling timeout", async ({
+  request,
+}) => {
+  test.setTimeout(120000);
+  const { attachmentId } = await importLesson(request, "slow-response");
+  const readJob = async () =>
+    (await jobs(request)).jobs.find(
+      (job) => job.attachment_id === attachmentId,
+    );
+  await expect
+    .poll(async () => (await readJob())?.status, { timeout: 90000 })
+    .toBe("failed");
+  const failed = await readJob();
+  if (!failed?.response_id) throw new Error("Missing background response");
+  expect(failed.error_code).toBe("provider_poll_timeout");
+  const released = await request.post(
+    `http://127.0.0.1:5199/fixture/complete/${failed.response_id}`,
+    { headers: { Authorization: "Bearer local-fixture-provider" } },
+  );
+  expect(await released.json()).toEqual({ released: true });
+  expect(
+    (
+      await request.post(`/api/admin/lessons/${failed.id}/retry`, { headers })
+    ).status(),
+  ).toBe(202);
+  await expect.poll(readJob, { timeout: 20000 }).toMatchObject({
+    status: "published",
+    attempt: 2,
+    response_id: failed.response_id,
+  });
+  const result = await request.get(`/api/admin/lessons/${failed.id}/result`, {
+    headers,
+  });
+  expect(await result.json()).toMatchObject({
+    id: failed.response_id,
+    status: "completed",
+  });
 });
 
 test("processes actual email events and ignores unrelated PDFs without a false alert", async ({

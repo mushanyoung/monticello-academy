@@ -5,6 +5,8 @@ import {
   lessonRequest,
   lessonRequestBody,
   readExtraction,
+  resumeLessonResponse,
+  waitForLessonResponse,
 } from "../../src/worker/openai";
 import { fixtureExtraction } from "../fixtures/extraction";
 
@@ -56,6 +58,58 @@ describe("lesson model readiness", () => {
   });
 });
 describe("PDF lesson parsing protocol", () => {
+  it("accepts a background PDF that completes on the last poll, an hour after submission", async () => {
+    let elapsed = 0;
+    await waitForLessonResponse("queued", async (_index, seconds) => {
+      elapsed += seconds;
+      return elapsed >= 3600 ? "completed" : "in_progress";
+    });
+    expect(elapsed).toBe(3600);
+  });
+  it("distinguishes a polling timeout from an unsuccessful terminal response", async () => {
+    let elapsed = 0;
+    await expect(
+      waitForLessonResponse("in_progress", async (_index, seconds) => {
+        elapsed += seconds;
+        return "queued";
+      }),
+    ).rejects.toMatchObject({ code: "provider_poll_timeout" });
+    expect(elapsed).toBe(3600);
+    const poll = vi.fn();
+    for (const status of ["failed", "incomplete", "cancelled"] as const)
+      await expect(waitForLessonResponse(status, poll)).rejects.toMatchObject({
+        code: "provider_incomplete",
+      });
+    await waitForLessonResponse("completed", poll);
+    expect(poll).not.toHaveBeenCalled();
+  });
+  it("resumes pending or completed responses and replaces only expired or unsuccessful ones", async () => {
+    const env = {
+      OPENAI_API_KEY: "fixture",
+      LESSON_OPENAI_BASE: "https://api.openai.com/v1" as const,
+    };
+    const request = vi.fn<typeof fetch>();
+    const resume = () => resumeLessonResponse(env, "saved", request);
+    for (const status of ["queued", "in_progress", "completed"]) {
+      const response = { id: "saved", status };
+      request.mockResolvedValueOnce(Response.json(response));
+      await expect(resume()).resolves.toEqual(response);
+    }
+    for (const status of ["cancelled", "failed", "incomplete"]) {
+      request.mockResolvedValueOnce(Response.json({ id: "saved", status }));
+      await expect(resume()).resolves.toBeNull();
+    }
+    for (const status of [404, 410]) {
+      request.mockResolvedValueOnce(new Response(null, { status }));
+      await expect(resume()).resolves.toBeNull();
+    }
+    request.mockResolvedValueOnce(new Response(null, { status: 503 }));
+    await expect(resume()).rejects.toMatchObject({ code: "provider_http_503" });
+    expect(request).toHaveBeenCalledWith(
+      "https://api.openai.com/v1/responses/saved",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
   it("sends the PDF with strict output, vision detail and temporary background retention", () => {
     const body = lessonRequestBody(
       "synthetic.pdf",

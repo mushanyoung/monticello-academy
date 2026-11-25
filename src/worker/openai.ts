@@ -73,6 +73,60 @@ export class LessonError extends Error {
     super(message);
   }
 }
+
+function pendingResponse(status: LessonResponse["status"]) {
+  return status === "queued" || status === "in_progress";
+}
+
+export async function waitForLessonResponse(
+  initialStatus: LessonResponse["status"],
+  poll: (
+    index: number,
+    delaySeconds: number,
+  ) => Promise<LessonResponse["status"]>,
+) {
+  let status = initialStatus;
+  // Six 10-second waits and 59 one-minute waits give slow PDFs an hour.
+  for (let index = 0; pendingResponse(status) && index < 65; index++) {
+    status = await poll(index, index < 6 ? 10 : 60);
+  }
+  if (pendingResponse(status))
+    throw new LessonError(
+      "provider_poll_timeout",
+      `PDF 解析等待超时，模型状态仍为 ${status}。 / The lesson model is still ${status} after the polling window.`,
+    );
+  if (status !== "completed")
+    throw new LessonError(
+      "provider_incomplete",
+      `课程模型已结束，状态为 ${status}。 / Lesson model ended with status ${status}.`,
+    );
+}
+
+export async function resumeLessonResponse(
+  env: Pick<Env, "OPENAI_API_KEY" | "LESSON_OPENAI_BASE">,
+  responseId: string,
+  request = fetch,
+) {
+  try {
+    const response = await lessonRequest(
+      env,
+      `/responses/${responseId}`,
+      undefined,
+      request,
+    );
+    return pendingResponse(response.status) || response.status === "completed"
+      ? response
+      : null;
+  } catch (error) {
+    if (
+      error instanceof LessonError &&
+      ["provider_http_404", "provider_http_410"].includes(error.code)
+    )
+      return null;
+    throw error;
+  }
+}
+
 export function readExtraction(response: LessonResponse) {
   if (response.status !== "completed")
     throw new LessonError(

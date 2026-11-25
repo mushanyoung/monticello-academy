@@ -156,7 +156,9 @@ export async function retryLesson(env: Env, id: string) {
     throw new HttpError(409, "Only failed jobs can be retried.");
   const attempt = job.attempt + 1;
   const updated = await env.DB.prepare(
-    "UPDATE lesson_jobs SET status='queued',attempt=?,workflow_id=?,response_id=NULL,result_key=NULL,error_code=NULL,error_message=NULL,updated_at=? WHERE id=? AND status='failed' AND attempt=?",
+    `UPDATE lesson_jobs SET status='queued',attempt=?,workflow_id=?,
+     response_id=CASE WHEN error_code IN ('provider_poll_timeout','provider_incomplete') THEN response_id END,
+     result_key=NULL,error_code=NULL,error_message=NULL,updated_at=? WHERE id=? AND status='failed' AND attempt=?`,
   )
     .bind(
       attempt,

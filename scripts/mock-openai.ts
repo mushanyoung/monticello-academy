@@ -5,6 +5,7 @@ import { fixtureTranslation } from "../tests/fixtures/translation.ts";
 
 const responses = new Map<string, unknown>();
 const attempts = new Map<string, number>();
+const pendingLessons = new Set<string>();
 createServer(async (request, response) => {
   response.setHeader("Content-Type", "application/json");
   const reply = (value: unknown, status = 200) => {
@@ -14,6 +15,9 @@ createServer(async (request, response) => {
   if (request.url === "/health") return reply({ ok: true });
   if (request.headers.authorization !== "Bearer local-fixture-provider")
     return reply({ error: "Invalid fixture credentials" }, 401);
+  const release = request.url?.match(/^\/fixture\/complete\/(resp_[a-f0-9]+)$/);
+  if (request.method === "POST" && release?.[1])
+    return reply({ released: pendingLessons.delete(release[1]) });
   if (request.url === "/v1/models/gpt-6.1-terra")
     return reply({ id: "gpt-6.1-terra" });
   if (request.method === "POST" && request.url === "/v1/responses") {
@@ -107,9 +111,11 @@ createServer(async (request, response) => {
       });
     const id = `resp_${crypto.randomUUID().replaceAll("-", "")}`;
     responses.set(id, extraction);
+    if (filename.includes("slow-response")) pendingLessons.add(id);
     return reply({ id, status: "queued" });
   }
   const id = request.url?.split("/").pop() || "";
+  if (pendingLessons.has(id)) return reply({ id, status: "in_progress" });
   const extraction = responses.get(id);
   if (extraction)
     return reply({

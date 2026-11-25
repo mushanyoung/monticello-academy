@@ -36,7 +36,7 @@ GET `/api/highlights?after=YYYY-MM-DD&class=` 返回严格晚于 after 的最早
 
 Workflow 读取私有 R2 PDF，通过 Responses API 同时读取文字和页图，使用 strict JSON Schema、medium reasoning，后台轮询至完成。PDF 解析上限 15 MiB，输出最多 32k tokens。background:true、store:false 使用提供商短期轮询存储；参见 [PDF 输入](https://developers.openai.com/api/docs/guides/file-inputs)、[后台模式](https://developers.openai.com/api/docs/guides/background)。不执行文档中的指令，不提取儿童姓名或个人生日。
 
-网络和存储步骤最多重试 3 次；轮询最多 60 次、间隔 10 秒。模型结果存入私有 R2，仅管理凭据可读取。结构错误、无有效日期或无法识别班级会失败并邮件通知，原件仍可下载。原文差异直接存入 sourceNotes、每日条目及 alternateDays，并邮件说明已展示，不会暂停发布。不同文件并发完成使用 D1 compare-and-swap 合并，每次成功版本保存 revision。
+网络和存储步骤最多重试 3 次。模型仍在排队或处理 PDF 时，首分钟每 10 秒查询一次，随后每分钟查询一次，累计最多等待 60 分钟。最后一次查询仍在处理时记录 `provider_poll_timeout`，模型已失败、取消或输出不完整时记录 `provider_incomplete`。模型结果存入私有 R2，仅管理凭据可读取。结构错误、无有效日期或无法识别班级会失败并邮件通知，原件仍可下载。原文差异直接存入 sourceNotes、每日条目及 alternateDays，并邮件说明已展示，不会暂停发布。不同文件并发完成使用 D1 compare-and-swap 合并，每次成功版本保存 revision。
 
 识别成功后补齐原邮件的班级关联。历史回填可传 notify:false，避免旧资料集中通知；新邮件默认通知。通知固定发到 Secret 内的已验证收件人。D1 outbox 使用发送租约和指数退避，最长退避 24 小时；发送服务不可用时持续重试并记录事件。发送成功但数据库记录失败时可能重复通知；模型提交成功但响应 ID 尚未保存时也可能重复调用。
 

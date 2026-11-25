@@ -63,7 +63,7 @@ cf 配置声明 LessonWorkflow、LESSONS workflow binding、LESSON_EMAIL sendEma
 - POST /api/admin/lessons：JSON 包含 attachmentIds（1–30 个已归档 PDF 的 64 位十六进制 ID）、notify（默认 true；历史回填可 false）。
 - GET /api/admin/lessons/:id/result：私有模型结果供排障，不得提交到仓库。
 - POST /api/admin/lessons/:id/index：从已保存结果重建课程 PDF 搜索索引，不调用模型。
-- POST /api/admin/lessons/:id/retry：仅重试 failed job，递增 attempt 并创建新 Workflow。不存在批准或确认端点。
+- POST `/api/admin/lessons/:id/retry` 只重试 failed job，递增 attempt 并创建新 Workflow。遇到 `provider_poll_timeout` 或 `provider_incomplete` 时会先查询已保存的模型响应，也适用于旧版本记录的超时。仍在处理的响应继续轮询，已完成的响应直接校验并发布。响应已过期或模型已报告失败、取消、输出不完整时，才重新提交归档 PDF。
 - POST /api/admin/lessons/reconcile：立即执行补扫、失效任务检测及通知重试。
 - POST /api/admin/lessons/notification-test：向固定收件人发送测试通知，返回 sent/pending 和提供商 message ID。sent 表示 Cloudflare 接受发送，不代表收件箱已读取。
 
