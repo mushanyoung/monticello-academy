@@ -1,13 +1,16 @@
-import { type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { CLASSES } from "../shared/classes";
-import { campusDate } from "../shared/dates";
+import { campusDate, startOfWeek, validDate } from "../shared/dates";
 import type { StoredPlan } from "../shared/plans";
 import { href, useApi } from "./api";
 import { Icon, RoomDoodle } from "./art";
 import { ClassBadge, ClassFilters, Empty, LoadState } from "./components";
 import { useI18n } from "./i18n";
-import { DayDetails } from "./lesson-details";
+import { PlanDayBody } from "./lesson-details";
+import { useNavigation } from "./navigation";
+import { PlanSources, SourceNoteItems } from "./plan-sources";
 import { TranslationNotice } from "./TranslationNotice";
+import { monthForWeek, WeeklyPlans } from "./WeeklyPlans";
 
 function PlanNotes({
   title,
@@ -24,31 +27,63 @@ function PlanNotes({
   );
 }
 
+function defaultWeek(month: string, today: string) {
+  return startOfWeek(today.startsWith(month) ? today : `${month}-01`);
+}
+
 export function Plans({
   selected,
   month,
+  week,
 }: {
   selected: string;
   month?: string;
+  week?: string;
 }) {
-  const { t } = useI18n();
+  const { t, displayDate } = useI18n();
+  const { search, follow, navigate } = useNavigation();
+  const [lastWeek, setLastWeek] = useState<string>();
   const available = useApi<{ months: string[] }>("/api/plan-months");
   const months = available.data?.months;
-  const currentMonth = campusDate().slice(0, 7);
+  const today = campusDate();
+  const currentMonth = today.slice(0, 7);
+  const requestedWeek = week && validDate(week) ? startOfWeek(week) : undefined;
+  const weekMonth =
+    requestedWeek && months
+      ? monthForWeek(requestedWeek, months, month)
+      : undefined;
   const selectedMonth =
-    month && months?.includes(month)
+    weekMonth ||
+    (month && months?.includes(month)
       ? month
       : months?.includes(currentMonth)
         ? currentMonth
-        : months?.[0];
+        : months?.[0]);
+  const selectedWeek =
+    week !== undefined && selectedMonth
+      ? weekMonth
+        ? requestedWeek
+        : defaultWeek(selectedMonth, today)
+      : undefined;
   useEffect(() => {
-    if (selectedMonth && month !== selectedMonth)
+    if (
+      selectedMonth &&
+      (month !== selectedMonth || week !== selectedWeek) &&
+      window.location.search === search
+    )
       window.history.replaceState(
         window.history.state,
         "",
-        href({ view: "plans", class: selected, month: selectedMonth }),
+        href({
+          view: "plans",
+          class: selected,
+          month: selectedMonth,
+          week: selectedWeek,
+        }),
       );
-  }, [selectedMonth, month, selected]);
+  }, [selectedMonth, month, selectedWeek, week, selected, search]);
+  const planLink = (month: string, week?: string) =>
+    href({ view: "plans", class: selected, month, week });
   return (
     <>
       <h1 className="sr-only">{t("Lesson plans")}</h1>
@@ -56,16 +91,88 @@ export function Plans({
         view="plans"
         selected={selected}
         month={selectedMonth || month}
+        week={selectedWeek}
       />
       {!months ? (
         <LoadState error={available.error} retry={available.retry} />
       ) : selectedMonth ? (
-        <MonthlyPlans
-          key={`${selected}:${selectedMonth}`}
-          selected={selected}
-          selectedMonth={selectedMonth}
-          months={months}
-        />
+        <>
+          <div className="plan-toolbar">
+            <div className="month-picker">
+              <label htmlFor="month">{t("Month")}</label>
+              <select
+                id="month"
+                name="month"
+                value={selectedMonth}
+                onChange={(event) => {
+                  const target = event.currentTarget.value;
+                  navigate(
+                    planLink(
+                      target,
+                      selectedWeek ? defaultWeek(target, today) : undefined,
+                    ),
+                  );
+                }}
+              >
+                {months.map((value) => (
+                  <option key={value} value={value}>
+                    {displayDate(`${value}-01`, {
+                      year: "numeric",
+                      month: "long",
+                    })}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <nav
+              className="plan-view-switch"
+              aria-label={t("Lesson plan view")}
+            >
+              <a
+                href={planLink(selectedMonth)}
+                onClick={(event) => {
+                  if (selectedWeek) setLastWeek(selectedWeek);
+                  follow(event);
+                }}
+                aria-current={!selectedWeek ? "page" : undefined}
+              >
+                <Icon name="calendar" size={17} />
+                {t("Month view")}
+              </a>
+              <a
+                href={planLink(
+                  selectedMonth,
+                  selectedWeek ||
+                    (lastWeek &&
+                    monthForWeek(lastWeek, months, selectedMonth) ===
+                      selectedMonth
+                      ? lastWeek
+                      : defaultWeek(selectedMonth, today)),
+                )}
+                onClick={follow}
+                aria-current={selectedWeek ? "page" : undefined}
+              >
+                <Icon name="book" size={17} />
+                {t("Week view")}
+              </a>
+            </nav>
+          </div>
+          {selectedWeek ? (
+            <WeeklyPlans
+              selected={selected}
+              month={selectedMonth}
+              week={selectedWeek}
+              months={months}
+              today={today}
+            />
+          ) : (
+            <MonthlyPlans
+              key={`${selected}:${selectedMonth}`}
+              selected={selected}
+              selectedMonth={selectedMonth}
+            />
+          )}
+        </>
       ) : (
         <Empty
           title={t("No lesson plans have been added yet.")}
@@ -82,11 +189,9 @@ export function Plans({
 function MonthlyPlans({
   selected,
   selectedMonth,
-  months,
 }: {
   selected: string;
   selectedMonth: string;
-  months: string[];
 }) {
   const { t, displayDate } = useI18n();
   const plans = useApi<{ items: StoredPlan[] }>(
@@ -94,29 +199,6 @@ function MonthlyPlans({
   );
   return (
     <>
-      <div className="month-picker">
-        <label htmlFor="month">{t("Month")}</label>
-        <select
-          id="month"
-          name="month"
-          defaultValue={selectedMonth}
-          onChange={(event) => {
-            window.location.assign(
-              href({
-                view: "plans",
-                class: selected,
-                month: event.currentTarget.value,
-              }),
-            );
-          }}
-        >
-          {months.map((value) => (
-            <option key={value} value={value}>
-              {displayDate(`${value}-01`, { year: "numeric", month: "long" })}
-            </option>
-          ))}
-        </select>
-      </div>
       {plans.data ? (
         plans.data.items.length ? (
           <div className="plan-list">
@@ -156,21 +238,7 @@ function MonthlyPlans({
                   )}
                   {!!plan.sourceNotes?.length && (
                     <PlanNotes title={t("NOTES FROM THE ORIGINAL SOURCES")}>
-                      {plan.sourceNotes.map((note) => (
-                        <li key={JSON.stringify(note)}>
-                          <span>{note.description}</span>{" "}
-                          <a
-                            className="text-link"
-                            href={`/api/attachments/${note.attachmentId}?preview=1#page=${note.pages[0] || 1}`}
-                          >
-                            {note.pages.length
-                              ? t("PDF · p. {pages}", {
-                                  pages: note.pages.join(", "),
-                                })
-                              : t("PDF")}
-                          </a>
-                        </li>
-                      ))}
+                      <SourceNoteItems notes={plan.sourceNotes} />
                     </PlanNotes>
                   )}
                   {plan.objectives.length > 0 && (
@@ -231,75 +299,16 @@ function MonthlyPlans({
                             </span>
                             <Icon name="chevron" size={18} />
                           </summary>
-                          <div className="plan-day-body">
-                            {day.activities.map((a) => (
-                              <p key={`${a.area}-${a.description}`}>
-                                <strong>{a.area}</strong> — {a.description}
-                              </p>
-                            ))}
-                            {day.bring.length > 0 && (
-                              <p className="bring-note">
-                                <strong>{t("Bring along:")}</strong>{" "}
-                                {day.bring.join(" · ")}
-                              </p>
+                          <PlanDayBody
+                            day={day}
+                            alternatives={plan.alternateDays?.filter(
+                              (entry) => entry.date === day.date,
                             )}
-                            {day.reminders.map((r) => (
-                              <p key={r}>
-                                <strong>{t("Remember:")}</strong> {r}
-                              </p>
-                            ))}
-                            {day.note && <p>{day.note}</p>}
-                            {day.sourceAttachmentId && (
-                              <a
-                                className="text-link"
-                                href={`/api/attachments/${day.sourceAttachmentId}?preview=1#page=${day.sourcePages?.[0] || 1}`}
-                              >
-                                {t("Source PDF · p.")}{" "}
-                                {day.sourcePages?.join(", ") || "1"}
-                              </a>
-                            )}
-                            {plan.alternateDays
-                              ?.filter((entry) => entry.date === day.date)
-                              .map((entry) => (
-                                <div
-                                  className="objectives"
-                                  key={JSON.stringify(entry)}
-                                >
-                                  <span className="small-label">
-                                    {t("ALSO IN THE SOURCE DOCUMENTS")}
-                                  </span>
-                                  <DayDetails day={entry} />
-                                </div>
-                              ))}
-                          </div>
+                          />
                         </details>
                       ))}
                   </div>
-                  <div className="plan-source">
-                    {plan.sources?.map((source) => (
-                      <a
-                        className="text-link"
-                        key={source.attachmentId}
-                        href={`/api/attachments/${source.attachmentId}?preview=1`}
-                      >
-                        {source.filename}
-                      </a>
-                    ))}
-                    <a
-                      className="text-link"
-                      href={href({
-                        view: "mail",
-                        id: plan.sourceMessageId,
-                        class: plan.classId,
-                      })}
-                    >
-                      {t("Read the source email")}{" "}
-                      <Icon name="arrow" size={18} />
-                    </a>
-                    <span>
-                      {t("Updated")} {displayDate(plan.updatedAt)}
-                    </span>
-                  </div>
+                  <PlanSources plan={plan} />
                 </article>
               );
             })}

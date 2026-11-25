@@ -19,6 +19,7 @@ function currentLocation() {
 const NavigationContext = createContext<{
   search: string;
   pending: boolean;
+  navigate: (href: string) => void;
   follow: (event: MouseEvent<HTMLAnchorElement>) => void;
 } | null>(null);
 
@@ -34,6 +35,13 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("popstate", restore);
   }, []);
 
+  const navigate = (href: string) => {
+    const url = new URL(href, window.location.href);
+    if (url.href === window.location.href) return;
+    window.history.pushState(null, "", url);
+    const next = currentLocation();
+    startTransition(() => setLocation(next));
+  };
   const follow = (event: MouseEvent<HTMLAnchorElement>) => {
     const link = event.currentTarget;
     if (
@@ -55,14 +63,13 @@ export function NavigationProvider({ children }: { children: ReactNode }) {
     )
       return;
     event.preventDefault();
-    if (url.href === window.location.href) return;
-    window.history.pushState(null, "", url);
-    const next = currentLocation();
-    startTransition(() => setLocation(next));
+    navigate(url.href);
   };
 
   return (
-    <NavigationContext value={{ search: location.search, pending, follow }}>
+    <NavigationContext
+      value={{ search: location.search, pending, follow, navigate }}
+    >
       <ApiRequestsContext value={location.requests}>
         {children}
       </ApiRequestsContext>

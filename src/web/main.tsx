@@ -10,6 +10,7 @@ import "@fontsource/fraunces/latin-500.css";
 import "@fontsource/fraunces/latin-600.css";
 import "@fontsource/caveat/latin-500.css";
 import "./styles.css";
+import "./weekly-plans.css";
 import { CLASSES, isClassId } from "../shared/classes";
 import { campusDate } from "../shared/dates";
 import { href, useApi } from "./api";
@@ -115,6 +116,7 @@ function App() {
               <Plans
                 selected={selected}
                 month={params.get("month") || undefined}
+                week={params.get("week") ?? undefined}
               />
             ) : (
               <Dashboard

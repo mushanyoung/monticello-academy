@@ -18,10 +18,12 @@ export function ClassFilters({
   view,
   selected,
   month,
+  week,
 }: {
   view: string;
   selected: string;
   month?: string;
+  week?: string;
 }) {
   const { t, className } = useI18n();
   const { search, pending, follow } = useNavigation();
@@ -39,7 +41,7 @@ export function ClassFilters({
     >
       <a
         className={selected === "all" ? "selected" : ""}
-        href={href({ ...context, view, month })}
+        href={href({ ...context, view, month, week })}
         onClick={follow}
         aria-current={selected === "all" ? "true" : undefined}
       >
@@ -49,7 +51,7 @@ export function ClassFilters({
         <a
           key={c.id}
           className={selected === c.id ? "selected" : ""}
-          href={href({ ...context, view, class: c.id, month })}
+          href={href({ ...context, view, class: c.id, month, week })}
           onClick={follow}
           aria-current={selected === c.id ? "true" : undefined}
         >

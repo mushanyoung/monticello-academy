@@ -35,3 +35,49 @@ export function DayDetails({ day }: { day: LessonDay }) {
     </div>
   );
 }
+
+export function PlanDayBody({
+  day,
+  alternatives,
+}: {
+  day: LessonDay;
+  alternatives?: LessonDay[];
+}) {
+  const { t } = useI18n();
+  return (
+    <div className="plan-day-body">
+      {day.activities.map((a) => (
+        <p key={`${a.area}-${a.description}`}>
+          <strong>{a.area}</strong> — {a.description}
+        </p>
+      ))}
+      {day.bring.length > 0 && (
+        <p className="bring-note">
+          <strong>{t("Bring along:")}</strong> {day.bring.join(" · ")}
+        </p>
+      )}
+      {day.reminders.map((r) => (
+        <p key={r}>
+          <strong>{t("Remember:")}</strong> {r}
+        </p>
+      ))}
+      {day.note && <p>{day.note}</p>}
+      {day.sourceAttachmentId && (
+        <a
+          className="text-link"
+          href={`/api/attachments/${day.sourceAttachmentId}?preview=1#page=${day.sourcePages?.[0] || 1}`}
+        >
+          {t("Source PDF · p.")} {day.sourcePages?.join(", ") || "1"}
+        </a>
+      )}
+      {alternatives?.map((entry) => (
+        <div className="objectives" key={JSON.stringify(entry)}>
+          <span className="small-label">
+            {t("ALSO IN THE SOURCE DOCUMENTS")}
+          </span>
+          <DayDetails day={entry} />
+        </div>
+      ))}
+    </div>
+  );
+}
