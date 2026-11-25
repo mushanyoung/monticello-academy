@@ -14,6 +14,8 @@ POST `/api/plans` 需要 IMPORT_TOKEN，并验证来源邮件已关联同一班�
 
 GET `/api/plans?class=&month=` 只列已发布计划；GET `/api/highlights?date=YYYY-MM-DD&class=` 区分未收到计划、当天未列出、已准备三种状态。按请求日期读取，无需 cron 预生成；缺数据不推断放假或无注意事项。
 
+GET `/api/plans?week=YYYY-MM-DD&class=&lang=` 接受周一的校园日期，返回截至周日的日程、同日其他原文记录和日期区间相交的每周目标。跨月或跨年时查询涉及的两个月。各月的来源、整月提醒与译文状态随计划返回，仅有学习重点的班级也可查看。`month` 和 `week` 同时出现、无效日期或起点非周一均返回 400。
+
 GET `/api/highlights?after=YYYY-MM-DD&class=` 返回严格晚于 after 的最早已入库日期及当天提醒；after 与 date 不能同时传入。筛选单班时仅按该班查找，全部班级时取任一班有日程的最早日期，所有卡片共用该日期。明确列出的停课通知和周末活动也算信息，不按星期推断；只有月度提醒或每周目标、没有每日条目的计划不产生日期。找不到时返回 `date: null, classes: []`。日期选择基于原始已发布计划，再读取对应语言的完整内容；没有 120 条列表上限，不需新增迁移或模型调用。
 
 模型固定为 GPT 6.1 Terra（`gpt-6.1-terra`）；`GET /api/admin/ai` 使用 IMPORT_TOKEN 鉴权，由 Worker 用已有 OPENAI_API_KEY Secret 核实模型访问权限，只返回模型 ID 与可用状态。无需将密钥从 Cloudflare 导出。自动处理流程见下文。

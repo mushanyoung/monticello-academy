@@ -1,5 +1,10 @@
 import { CLASSES } from "../shared/classes";
-import { CAMPUS_TIME_ZONE, campusDate } from "../shared/dates";
+import {
+  addDays,
+  CAMPUS_TIME_ZONE,
+  campusDate,
+  startOfWeek,
+} from "../shared/dates";
 import {
   isLanguage,
   type Language,
@@ -93,6 +98,16 @@ export async function listPlans(db: D1Database, url: URL) {
   const language = isLanguage(requested) ? requested : "en";
   const selected = classFilter(url.searchParams.get("class"));
   const month = url.searchParams.get("month");
+  const week = url.searchParams.get("week");
+  if (
+    week !== null &&
+    (month !== null || !validDate(week) || startOfWeek(week) !== week)
+  )
+    throw new HttpError(
+      400,
+      "Choose a month or a week starting on a valid Monday.",
+    );
+  const weekEnd = week ? addDays(week, 6) : null;
   if (month && !/^\d{4}-(0[1-9]|1[0-2])$/.test(month))
     throw new HttpError(400, "Invalid month.");
   const terms = ["p.status='published'"];
@@ -105,13 +120,29 @@ export async function listPlans(db: D1Database, url: URL) {
     terms.push("p.month=?");
     values.push(month);
   }
+  if (week && weekEnd) {
+    terms.push("p.month BETWEEN ? AND ?");
+    values.push(week.slice(0, 7), weekEnd.slice(0, 7));
+  }
   const rows = await db
     .prepare(
       `${localizedPlanSql(language)} WHERE ${terms.join(" AND ")} ORDER BY p.month DESC,p.class_id LIMIT 120`,
     )
     .bind(...values)
     .all<PlanRow>();
-  return { items: rows.results.map(decode) };
+  const items = rows.results.map(decode);
+  if (week && weekEnd) {
+    const inWeek = (day: { date: string }) =>
+      day.date >= week && day.date <= weekEnd;
+    for (const plan of items) {
+      plan.days = plan.days.filter(inWeek);
+      plan.alternateDays = plan.alternateDays?.filter(inWeek);
+      plan.weeks = plan.weeks?.filter(
+        (w) => w.startDate <= weekEnd && w.endDate >= week,
+      );
+    }
+  }
+  return { items };
 }
 export function selectHighlight(
   classId: ClassHighlight["classId"],

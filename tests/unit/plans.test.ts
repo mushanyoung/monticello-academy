@@ -39,6 +39,67 @@ describe("lesson plan rules", () => {
       "Rain boots",
     ]);
   });
+  it("reads a Monday–Sunday slice of both months with overlapping goals and alternative entries", async () => {
+    const sqlite = migratedDatabase();
+    try {
+      const db = d1Binding(sqlite);
+      const source = plan.sourceMessageId;
+      sqlite
+        .prepare(
+          "INSERT INTO messages VALUES(?,'k','h','','','','','','','','','raw','')",
+        )
+        .run(source);
+      sqlite
+        .prepare("INSERT INTO message_classes VALUES(?,'sunshine')")
+        .run(source);
+      const december = fixturePlan(source, "2043-12-28");
+      december.days.push(...fixturePlan(source, "2043-12-27").days);
+      const january = fixturePlan(source, "2044-01-03");
+      january.days.push(...fixturePlan(source, "2044-01-04").days);
+      january.alternateDays = january.days.map((day) => ({
+        ...day,
+        title: "Calendar entry",
+      }));
+      january.weeks = [
+        {
+          startDate: "2044-01-01",
+          endDate: "2044-01-05",
+          theme: "Winter",
+          focus: [],
+        },
+        {
+          startDate: "2044-01-04",
+          endDate: "2044-01-08",
+          theme: "Stories",
+          focus: [],
+        },
+      ];
+      await savePlan(db, december);
+      await savePlan(db, january);
+      const query = (search: string) =>
+        listPlans(db, new URL(`https://example.com/?${search}`));
+      const { items } = await query("week=2043-12-28");
+      expect(items.map((p) => p.days.map((d) => d.date))).toEqual([
+        ["2044-01-03"],
+        ["2043-12-28"],
+      ]);
+      expect(items[0]?.alternateDays?.map((d) => d.date)).toEqual([
+        "2044-01-03",
+      ]);
+      expect(items[0]?.weeks?.map((w) => w.theme)).toEqual(["Winter"]);
+      expect((await query("week=2043-12-28&class=twos")).items).toEqual([]);
+      expect((await query("month=2044-01")).items[0]?.days).toHaveLength(2);
+      for (const search of [
+        "week=2043-12-29",
+        "week=2044-02-30",
+        "week=",
+        "week=2043-12-28&month=2043-12",
+      ])
+        await expect(query(search)).rejects.toMatchObject({ status: 400 });
+    } finally {
+      sqlite.close();
+    }
+  });
   it("reports untranslated Chinese source content accurately in both languages", async () => {
     const sqlite = migratedDatabase();
     try {
